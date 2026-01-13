@@ -39,6 +39,16 @@ interface TeamStat {
   label: string;
 }
 
+interface RecentGame {
+  date: string;
+  opponent_name: string;
+  opponent_logo: string;
+  team_score: string;
+  opponent_score: string;
+  won: boolean;
+  home_away: string;
+}
+
 interface GamePreview {
   event_id: number;
   date: string;
@@ -57,6 +67,8 @@ interface GamePreview {
   away_team_record?: string;
   away_team_rank?: number;
   away_team_stats?: TeamStat[];
+  away_recent_games?: RecentGame[];
+  home_recent_games?: RecentGame[];
   leaders?: Leader[];
   predictor?: {
     homeTeam: {
@@ -183,6 +195,96 @@ export default async function GamePreviewPage({
           />
         </div>
       )}
+
+      {/* Last 5 Games */}
+      {(preview.away_recent_games && preview.away_recent_games.length > 0) || (preview.home_recent_games && preview.home_recent_games.length > 0) ? (
+        <div className="border border-gray-200">
+          <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">Last 5 Games</h2>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-gray-200">
+            {/* Away Team Recent Games */}
+            <div className="p-4">
+              {preview.away_recent_games && preview.away_recent_games.length > 0 && (
+                <>
+                  <div className="flex items-center space-x-3 mb-3">
+                    {preview.away_team_logo && (
+                      <img src={preview.away_team_logo} alt={preview.away_team_name} className="w-8 h-8" />
+                    )}
+                    <h3 className="font-bold text-gray-900">{preview.away_team_name}</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {preview.away_recent_games.slice().reverse().map((game, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm hover:bg-gray-50 p-2 rounded">
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div
+                            className="w-8 h-8 flex items-center justify-center font-bold rounded"
+                            style={{
+                              backgroundColor: game.won ? '#10b981' : 'transparent',
+                              color: game.won ? 'white' : '#6b7280',
+                              border: game.won ? 'none' : '2px solid #d1d5db'
+                            }}
+                          >
+                            {game.won ? 'W' : 'L'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 truncate">
+                              {game.home_away === 'home' ? 'vs' : '@'} {game.opponent_name}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="font-semibold text-gray-900 ml-2">
+                          {game.won ? game.team_score : game.opponent_score}-{game.won ? game.opponent_score : game.team_score}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Home Team Recent Games */}
+            <div className="p-4">
+              {preview.home_recent_games && preview.home_recent_games.length > 0 && (
+                <>
+                  <div className="flex items-center space-x-3 mb-3">
+                    {preview.home_team_logo && (
+                      <img src={preview.home_team_logo} alt={preview.home_team_name} className="w-8 h-8" />
+                    )}
+                    <h3 className="font-bold text-gray-900">{preview.home_team_name}</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {preview.home_recent_games.slice().reverse().map((game, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm hover:bg-gray-50 p-2 rounded">
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div
+                            className="w-8 h-8 flex items-center justify-center font-bold rounded"
+                            style={{
+                              backgroundColor: game.won ? '#10b981' : 'transparent',
+                              color: game.won ? 'white' : '#6b7280',
+                              border: game.won ? 'none' : '2px solid #d1d5db'
+                            }}
+                          >
+                            {game.won ? 'W' : 'L'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 truncate">
+                              {game.home_away === 'home' ? 'vs' : '@'} {game.opponent_name}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="font-semibold text-gray-900 ml-2">
+                          {game.won ? game.team_score : game.opponent_score}-{game.won ? game.opponent_score : game.team_score}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Team Stats Comparison */}
       {preview.home_team_stats && preview.away_team_stats && (

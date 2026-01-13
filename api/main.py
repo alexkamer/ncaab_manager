@@ -10,6 +10,7 @@ import sqlite3
 from datetime import datetime
 from contextlib import contextmanager
 import httpx
+import asyncio
 
 app = FastAPI(
     title="NCAA Basketball API",
@@ -50,6 +51,47 @@ def dict_from_row(row) -> Dict[str, Any]:
     return {key: row[key] for key in row.keys()}
 
 
+async def fetch_recent_games_from_espn(team_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+    """Fetch recent completed games for a team from ESPN API"""
+    try:
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/{team_id}/schedule?season=2026"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+
+        recent_games = []
+        completed_events = [e for e in data.get('events', []) if e.get('competitions', [{}])[0].get('status', {}).get('type', {}).get('completed', False)]
+
+        # Get the most recent completed games
+        for event in completed_events[-limit:]:
+            competition = event['competitions'][0]
+            competitors = competition['competitors']
+
+            # Find the team's score and opponent
+            team_competitor = next((c for c in competitors if c['team']['id'] == team_id), None)
+            opponent_competitor = next((c for c in competitors if c['team']['id'] != team_id), None)
+
+            if team_competitor and opponent_competitor:
+                game_result = {
+                    'date': event.get('date', ''),
+                    'opponent_name': opponent_competitor['team']['displayName'],
+                    'opponent_logo': opponent_competitor['team'].get('logo', ''),
+                    'team_score': team_competitor['score'].get('displayValue', '0'),
+                    'opponent_score': opponent_competitor['score'].get('displayValue', '0'),
+                    'won': team_competitor.get('winner', False),
+                    'home_away': team_competitor.get('homeAway', ''),
+                }
+                recent_games.append(game_result)
+
+        return recent_games
+
+    except Exception as e:
+        print(f"Error fetching recent games from ESPN API: {e}")
+        return []
+
+
 async def fetch_game_preview_from_espn(event_id: int) -> Dict[str, Any]:
     """Fetch game preview from ESPN API"""
     try:
@@ -87,6 +129,19 @@ async def fetch_game_preview_from_espn(event_id: int) -> Dict[str, Any]:
         home_team_stats = home_team_boxscore.get('statistics', []) if home_team_boxscore else []
         away_team_stats = away_team_boxscore.get('statistics', []) if away_team_boxscore else []
 
+        # Get team IDs for fetching recent games
+        home_team_id = home_team_boxscore.get('team', {}).get('id', '') if home_team_boxscore else ''
+        away_team_id = away_team_boxscore.get('team', {}).get('id', '') if away_team_boxscore else ''
+
+        # Fetch recent games for both teams in parallel
+        home_recent_games = []
+        away_recent_games = []
+        if home_team_id and away_team_id:
+            home_recent_games, away_recent_games = await asyncio.gather(
+                fetch_recent_games_from_espn(home_team_id, 5),
+                fetch_recent_games_from_espn(away_team_id, 5)
+            )
+
         preview = {
             'event_id': event_id,
             'date': header.get('competitions', [{}])[0].get('date', ''),
@@ -105,6 +160,8 @@ async def fetch_game_preview_from_espn(event_id: int) -> Dict[str, Any]:
             'away_team_record': next((r.get('summary') for r in away_team_header.get('records', []) if r.get('type') == 'total'), None),
             'away_team_rank': away_team_header.get('curatedRank', {}).get('current'),
             'away_team_stats': away_team_stats,
+            'away_recent_games': away_recent_games,
+            'home_recent_games': home_recent_games,
             'leaders': data.get('leaders', []),
             'predictor': data.get('predictor', {}),
             'broadcasts': data.get('broadcasts', []),
