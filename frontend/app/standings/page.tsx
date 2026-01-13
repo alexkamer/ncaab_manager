@@ -23,6 +23,8 @@ interface Standing {
   home_losses: number;
   road_wins: number;
   road_losses: number;
+  ap_rank: number | null;
+  usa_rank: number | null;
 }
 
 interface Conference {
@@ -128,8 +130,11 @@ export default async function StandingsPage() {
                       <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300" colSpan={3}>
                         Conference
                       </th>
-                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider" colSpan={4}>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300" colSpan={5}>
                         Overall
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider" colSpan={2}>
+                        Polls
                       </th>
                     </tr>
                     <tr>
@@ -146,13 +151,22 @@ export default async function StandingsPage() {
                         W-L
                       </th>
                       <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        PCT
+                      </th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
                         HOME
                       </th>
                       <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
                         AWAY
                       </th>
-                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase border-r border-gray-300">
                         STRK
+                      </th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        AP
+                      </th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        USA
                       </th>
                     </tr>
                   </thead>
@@ -182,13 +196,16 @@ export default async function StandingsPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
                           {team.wins}-{team.losses}
                         </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
+                          {team.win_percentage.toFixed(3)}
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
                           {team.home_wins}-{team.home_losses}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
                           {team.road_wins}-{team.road_losses}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm border-r border-gray-300">
                           {(() => {
                             const streakNum = parseInt(team.current_streak || '0');
                             if (streakNum === 0) return <span className="text-gray-400">-</span>;
@@ -201,6 +218,12 @@ export default async function StandingsPage() {
                               </span>
                             );
                           })()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
+                          {team.ap_rank || '-'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
+                          {team.usa_rank || '-'}
                         </td>
                       </tr>
                     ))}

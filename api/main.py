@@ -505,6 +505,14 @@ def get_standings(
     with get_db() as conn:
         cursor = conn.cursor()
 
+        # Get latest week number for rankings
+        cursor.execute("""
+            SELECT MAX(week_number)
+            FROM weekly_rankings
+            WHERE season_id = ?
+        """, (season,))
+        latest_week = cursor.fetchone()[0] or 0
+
         query = """
             SELECT
                 st.*,
@@ -512,14 +520,28 @@ def get_standings(
                 t.abbreviation as team_abbr,
                 t.logo_url as team_logo,
                 g.name as conference_name,
-                g.logo_url as conference_logo
+                g.logo_url as conference_logo,
+                ap.current_rank as ap_rank,
+                coaches.current_rank as usa_rank
             FROM standings st
             JOIN teams t ON st.team_id = t.team_id
             JOIN groups g ON st.group_id = g.group_id
             JOIN seasons s ON st.season_id = s.season_id
+            LEFT JOIN (
+                SELECT wr.team_id, wr.current_rank
+                FROM weekly_rankings wr
+                JOIN ranking_types rt ON wr.ranking_type_id = rt.ranking_type_id
+                WHERE wr.season_id = ? AND wr.week_number = ? AND rt.type_code = 'AP'
+            ) ap ON st.team_id = ap.team_id
+            LEFT JOIN (
+                SELECT wr.team_id, wr.current_rank
+                FROM weekly_rankings wr
+                JOIN ranking_types rt ON wr.ranking_type_id = rt.ranking_type_id
+                WHERE wr.season_id = ? AND wr.week_number = ? AND rt.type_code = 'COACHES'
+            ) coaches ON st.team_id = coaches.team_id
             WHERE s.year = ?
         """
-        params = [season]
+        params = [season, latest_week, season, latest_week, season]
 
         if conference_id:
             query += " AND st.group_id = ?"
