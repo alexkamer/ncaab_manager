@@ -220,21 +220,26 @@ export default async function GamePreviewPage({
                           <div
                             className="w-8 h-8 flex items-center justify-center font-bold rounded"
                             style={{
-                              backgroundColor: game.won ? '#10b981' : 'transparent',
-                              color: game.won ? 'white' : '#6b7280',
-                              border: game.won ? 'none' : '2px solid #d1d5db'
+                              backgroundColor: game.won ? '#10b981' : '#ef4444',
+                              color: 'white'
                             }}
                           >
                             {game.won ? 'W' : 'L'}
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
+                            <span className="text-gray-500">{game.home_away === 'home' ? 'vs' : '@'}</span>
+                            {game.opponent_logo && (
+                              <img src={game.opponent_logo} alt={game.opponent_name} className="w-6 h-6" />
+                            )}
                             <div className="font-medium text-gray-900 truncate">
-                              {game.home_away === 'home' ? 'vs' : '@'} {game.opponent_name}
+                              {game.opponent_name}
                             </div>
                           </div>
                         </div>
-                        <div className="font-semibold text-gray-900 ml-2">
-                          {game.won ? game.team_score : game.opponent_score}-{game.won ? game.opponent_score : game.team_score}
+                        <div className="ml-2 text-sm">
+                          <span className="font-bold text-gray-900">{game.won ? game.team_score : game.opponent_score}</span>
+                          <span className="text-gray-400">-</span>
+                          <span className="text-gray-400">{game.won ? game.opponent_score : game.team_score}</span>
                         </div>
                       </div>
                     ))}
@@ -260,21 +265,26 @@ export default async function GamePreviewPage({
                           <div
                             className="w-8 h-8 flex items-center justify-center font-bold rounded"
                             style={{
-                              backgroundColor: game.won ? '#10b981' : 'transparent',
-                              color: game.won ? 'white' : '#6b7280',
-                              border: game.won ? 'none' : '2px solid #d1d5db'
+                              backgroundColor: game.won ? '#10b981' : '#ef4444',
+                              color: 'white'
                             }}
                           >
                             {game.won ? 'W' : 'L'}
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
+                            <span className="text-gray-500">{game.home_away === 'home' ? 'vs' : '@'}</span>
+                            {game.opponent_logo && (
+                              <img src={game.opponent_logo} alt={game.opponent_name} className="w-6 h-6" />
+                            )}
                             <div className="font-medium text-gray-900 truncate">
-                              {game.home_away === 'home' ? 'vs' : '@'} {game.opponent_name}
+                              {game.opponent_name}
                             </div>
                           </div>
                         </div>
-                        <div className="font-semibold text-gray-900 ml-2">
-                          {game.won ? game.team_score : game.opponent_score}-{game.won ? game.opponent_score : game.team_score}
+                        <div className="ml-2 text-sm">
+                          <span className="font-bold text-gray-900">{game.won ? game.team_score : game.opponent_score}</span>
+                          <span className="text-gray-400">-</span>
+                          <span className="text-gray-400">{game.won ? game.opponent_score : game.team_score}</span>
                         </div>
                       </div>
                     ))}

@@ -74,10 +74,16 @@ async def fetch_recent_games_from_espn(team_id: str, limit: int = 5) -> List[Dic
             opponent_competitor = next((c for c in competitors if c['team']['id'] != team_id), None)
 
             if team_competitor and opponent_competitor:
+                # Extract logo from logos array
+                opponent_logo = ''
+                logos = opponent_competitor['team'].get('logos', [])
+                if logos and len(logos) > 0:
+                    opponent_logo = logos[0].get('href', '')
+
                 game_result = {
                     'date': event.get('date', ''),
                     'opponent_name': opponent_competitor['team']['displayName'],
-                    'opponent_logo': opponent_competitor['team'].get('logo', ''),
+                    'opponent_logo': opponent_logo,
                     'team_score': team_competitor['score'].get('displayValue', '0'),
                     'opponent_score': opponent_competitor['score'].get('displayValue', '0'),
                     'won': team_competitor.get('winner', False),
