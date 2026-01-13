@@ -509,8 +509,10 @@ def get_standings(
             SELECT
                 st.*,
                 t.display_name as team_name,
+                t.abbreviation as team_abbr,
                 t.logo_url as team_logo,
-                g.name as conference_name
+                g.name as conference_name,
+                g.logo_url as conference_logo
             FROM standings st
             JOIN teams t ON st.team_id = t.team_id
             JOIN groups g ON st.group_id = g.group_id
@@ -523,7 +525,7 @@ def get_standings(
             query += " AND st.group_id = ?"
             params.append(conference_id)
 
-        query += " ORDER BY g.name, st.win_percentage DESC"
+        query += " ORDER BY g.name, st.playoff_seed ASC"
 
         cursor.execute(query, params)
         standings = [dict_from_row(row) for row in cursor.fetchall()]
