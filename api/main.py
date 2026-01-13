@@ -9,6 +9,7 @@ from typing import Optional, List, Dict, Any
 import sqlite3
 from datetime import datetime
 from contextlib import contextmanager
+import httpx
 
 app = FastAPI(
     title="NCAA Basketball API",
@@ -49,6 +50,85 @@ def dict_from_row(row) -> Dict[str, Any]:
     return {key: row[key] for key in row.keys()}
 
 
+async def fetch_games_from_espn(date: str) -> List[Dict[str, Any]]:
+    """Fetch games from ESPN API for a specific date"""
+    try:
+        # Convert YYYY-MM-DD to YYYYMMDD format for ESPN API
+        date_formatted = date.replace('-', '')
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_formatted}&limit=200"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+
+        games = []
+        for event in data.get('events', []):
+            competition = event['competitions'][0]
+
+            # Find home and away teams
+            home_team = next((c for c in competition['competitors'] if c['homeAway'] == 'home'), None)
+            away_team = next((c for c in competition['competitors'] if c['homeAway'] == 'away'), None)
+
+            if not home_team or not away_team:
+                continue
+
+            # Determine game status
+            status_obj = competition['status']['type']
+            status = status_obj['name']
+            is_completed = status == 'STATUS_FINAL'
+
+            # Get game time for scheduled games
+            status_detail = status_obj.get('shortDetail', '')
+
+            # Get odds information (use first provider, typically DraftKings)
+            odds_data = competition.get('odds', [])
+            spread = None
+            over_under = None
+            favorite_abbr = None
+
+            if odds_data and len(odds_data) > 0:
+                primary_odds = odds_data[0]
+                spread = primary_odds.get('spread')
+                over_under = primary_odds.get('overUnder')
+
+                # Determine which team is favored
+                home_odds = primary_odds.get('homeTeamOdds', {})
+                away_odds = primary_odds.get('awayTeamOdds', {})
+
+                if home_odds.get('favorite'):
+                    favorite_abbr = home_team['team']['abbreviation']
+                elif away_odds.get('favorite'):
+                    favorite_abbr = away_team['team']['abbreviation']
+
+            game = {
+                'event_id': int(event['id']),
+                'date': event['date'],
+                'home_score': int(home_team.get('score', 0)) if home_team.get('score') else 0,
+                'away_score': int(away_team.get('score', 0)) if away_team.get('score') else 0,
+                'status': status,
+                'status_detail': status_detail,
+                'is_completed': is_completed,
+                'is_conference_game': competition.get('conferenceCompetition', False),
+                'venue_name': competition['venue'].get('fullName', ''),
+                'home_team_name': home_team['team']['displayName'],
+                'home_team_abbr': home_team['team']['abbreviation'],
+                'home_team_logo': home_team['team'].get('logo', ''),
+                'away_team_name': away_team['team']['displayName'],
+                'away_team_abbr': away_team['team']['abbreviation'],
+                'away_team_logo': away_team['team'].get('logo', ''),
+                'spread': spread,
+                'over_under': over_under,
+                'favorite_abbr': favorite_abbr,
+            }
+            games.append(game)
+
+        return games
+    except Exception as e:
+        print(f"Error fetching from ESPN API: {e}")
+        return []
+
+
 @app.get("/")
 def read_root():
     """API root endpoint"""
@@ -60,13 +140,25 @@ def read_root():
             "teams": "/api/teams",
             "players": "/api/players",
             "rankings": "/api/rankings",
-            "standings": "/api/standings"
+            "standings": "/api/standings",
+            "today": "/api/today"
         }
     }
 
 
+@app.get("/api/today")
+def get_today():
+    """Get current server date in YYYY-MM-DD format"""
+    from datetime import datetime
+    today = datetime.now().strftime('%Y-%m-%d')
+    return {
+        "date": today,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
 @app.get("/api/games")
-def get_games(
+async def get_games(
     season: Optional[int] = Query(None, description="Season year (e.g., 2026)"),
     team_id: Optional[int] = Query(None, description="Filter by team ID"),
     date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
@@ -108,11 +200,11 @@ def get_games(
             params.extend([team_id, team_id])
 
         if date_from:
-            query += " AND e.date >= ?"
+            query += " AND DATE(e.date) >= ?"
             params.append(date_from)
 
         if date_to:
-            query += " AND e.date <= ?"
+            query += " AND DATE(e.date) <= ?"
             params.append(date_to)
 
         query += " ORDER BY e.date DESC LIMIT ? OFFSET ?"
@@ -121,11 +213,23 @@ def get_games(
         cursor.execute(query, params)
         games = [dict_from_row(row) for row in cursor.fetchall()]
 
+        # If no games found and we're filtering by a single date, try ESPN API
+        if len(games) == 0 and date_from and date_from == date_to:
+            espn_games = await fetch_games_from_espn(date_from)
+            return {
+                "games": espn_games,
+                "count": len(espn_games),
+                "limit": limit,
+                "offset": offset,
+                "source": "espn"
+            }
+
         return {
             "games": games,
             "count": len(games),
             "limit": limit,
-            "offset": offset
+            "offset": offset,
+            "source": "database"
         }
 
 
