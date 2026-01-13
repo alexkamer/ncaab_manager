@@ -50,6 +50,60 @@ def dict_from_row(row) -> Dict[str, Any]:
     return {key: row[key] for key in row.keys()}
 
 
+async def fetch_box_score_from_espn(event_id: int) -> Dict[str, Any]:
+    """Fetch box score from ESPN API for a specific game"""
+    try:
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event={event_id}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+
+        header = data.get('header', {})
+        competition = header.get('competitions', [{}])[0]
+        competitors = competition.get('competitors', [])
+
+        home_team = next((c for c in competitors if c.get('homeAway') == 'home'), {})
+        away_team = next((c for c in competitors if c.get('homeAway') == 'away'), {})
+
+        # Build game info
+        game_info = {
+            'event_id': event_id,
+            'date': header.get('competitions', [{}])[0].get('date', ''),
+            'status': competition.get('status', {}).get('type', {}).get('name', ''),
+            'status_detail': competition.get('status', {}).get('type', {}).get('detail', ''),
+            'is_completed': competition.get('status', {}).get('type', {}).get('completed', False),
+            'venue_name': competition.get('venue', {}).get('fullName', ''),
+            'attendance': competition.get('attendance', 0),
+            'home_team_name': home_team.get('team', {}).get('displayName', ''),
+            'home_team_abbr': home_team.get('team', {}).get('abbreviation', ''),
+            'home_team_logo': home_team.get('team', {}).get('logo', ''),
+            'home_team_color': home_team.get('team', {}).get('color', ''),
+            'home_score': int(home_team.get('score', 0)) if home_team.get('score') else 0,
+            'away_team_name': away_team.get('team', {}).get('displayName', ''),
+            'away_team_abbr': away_team.get('team', {}).get('abbreviation', ''),
+            'away_team_logo': away_team.get('team', {}).get('logo', ''),
+            'away_team_color': away_team.get('team', {}).get('color', ''),
+            'away_score': int(away_team.get('score', 0)) if away_team.get('score') else 0,
+        }
+
+        # Extract box score if available
+        if 'boxscore' in data and 'players' in data['boxscore']:
+            game_info['players'] = data['boxscore']['players']
+
+        # Extract team stats if available
+        if 'boxscore' in data and 'teams' in data['boxscore']:
+            game_info['team_stats'] = data['boxscore']['teams']
+
+        game_info['source'] = 'espn'
+        return game_info
+
+    except Exception as e:
+        print(f"Error fetching box score from ESPN API: {e}")
+        return {}
+
+
 async def fetch_games_from_espn(date: str) -> List[Dict[str, Any]]:
     """Fetch games from ESPN API for a specific date"""
     try:
@@ -234,7 +288,7 @@ async def get_games(
 
 
 @app.get("/api/games/{event_id}")
-def get_game_detail(event_id: int):
+async def get_game_detail(event_id: int):
     """Get detailed information about a specific game"""
     with get_db() as conn:
         cursor = conn.cursor()
@@ -260,10 +314,16 @@ def get_game_detail(event_id: int):
         """, (event_id,))
 
         game = cursor.fetchone()
+
+        # If game not found in database, try ESPN API
         if not game:
+            espn_data = await fetch_box_score_from_espn(event_id)
+            if espn_data:
+                return espn_data
             raise HTTPException(status_code=404, detail="Game not found")
 
         game_dict = dict_from_row(game)
+        game_dict['source'] = 'database'
 
         # Get team statistics
         cursor.execute("""
@@ -271,6 +331,20 @@ def get_game_detail(event_id: int):
             WHERE event_id = ?
         """, (event_id,))
         game_dict["team_stats"] = [dict_from_row(row) for row in cursor.fetchall()]
+
+        # Get player statistics
+        cursor.execute("""
+            SELECT
+                ps.*,
+                a.full_name,
+                a.display_name,
+                a.position_name
+            FROM player_statistics ps
+            JOIN athletes a ON ps.athlete_id = a.athlete_id
+            WHERE ps.event_id = ?
+            ORDER BY ps.team_id, ps.minutes_played DESC
+        """, (event_id,))
+        game_dict["player_stats"] = [dict_from_row(row) for row in cursor.fetchall()]
 
         # Get predictions if available
         cursor.execute("""
