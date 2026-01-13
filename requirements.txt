@@ -1,0 +1,21 @@
+# NCAA Basketball Database Population Scripts
+# Python 3.8+
+
+# HTTP requests
+requests>=2.31.0
+
+# Data manipulation
+pandas>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+
+# Optional: PostgreSQL support
+# psycopg2-binary>=2.9.0
+
+# Note: sqlite3 is built into Python, no installation needed
+
+# Web API
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
