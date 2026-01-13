@@ -181,12 +181,21 @@ export default async function GamesPage({
 
                     {/* Actions */}
                     <div className="ml-6 space-y-2">
-                      <Link
-                        href={`/games/${game.event_id}`}
-                        className="block px-4 py-1.5 text-sm text-center text-blue-600 border border-blue-600 rounded hover:bg-blue-50 whitespace-nowrap"
-                      >
-                        Box Score
-                      </Link>
+                      {game.is_completed || isLive ? (
+                        <Link
+                          href={`/games/${game.event_id}`}
+                          className="block px-4 py-1.5 text-sm text-center text-blue-600 border border-blue-600 rounded hover:bg-blue-50 whitespace-nowrap"
+                        >
+                          Box Score
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/games/${game.event_id}/preview`}
+                          className="block px-4 py-1.5 text-sm text-center text-green-600 border border-green-600 rounded hover:bg-green-50 whitespace-nowrap"
+                        >
+                          Preview
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>

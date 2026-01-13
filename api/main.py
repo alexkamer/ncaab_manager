@@ -50,6 +50,76 @@ def dict_from_row(row) -> Dict[str, Any]:
     return {key: row[key] for key in row.keys()}
 
 
+async def fetch_game_preview_from_espn(event_id: int) -> Dict[str, Any]:
+    """Fetch game preview from ESPN API"""
+    try:
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event={event_id}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+
+        header = data.get('header', {})
+        competition = header.get('competitions', [{}])[0]
+        competitors = competition.get('competitors', [])
+
+        # Get team info from boxscore.teams instead of header.competitors
+        boxscore_teams = data.get('boxscore', {}).get('teams', [])
+
+        # Map teams by homeAway
+        home_team_boxscore = None
+        away_team_boxscore = None
+        for team in boxscore_teams:
+            if team.get('homeAway') == 'home':
+                home_team_boxscore = team
+            elif team.get('homeAway') == 'away':
+                away_team_boxscore = team
+
+        # Get competitor records/ranks from header
+        home_team_header = next((c for c in competitors if c.get('homeAway') == 'home'), {})
+        away_team_header = next((c for c in competitors if c.get('homeAway') == 'away'), {})
+
+        # Get venue from gameInfo
+        venue_name = data.get('gameInfo', {}).get('venue', {}).get('fullName', '')
+
+        # Extract team statistics
+        home_team_stats = home_team_boxscore.get('statistics', []) if home_team_boxscore else []
+        away_team_stats = away_team_boxscore.get('statistics', []) if away_team_boxscore else []
+
+        preview = {
+            'event_id': event_id,
+            'date': header.get('competitions', [{}])[0].get('date', ''),
+            'status': competition.get('status', {}).get('type', {}).get('name', ''),
+            'status_detail': competition.get('status', {}).get('type', {}).get('detail', ''),
+            'venue_name': venue_name,
+            'home_team_name': home_team_boxscore.get('team', {}).get('displayName', '') if home_team_boxscore else '',
+            'home_team_logo': home_team_boxscore.get('team', {}).get('logo', '') if home_team_boxscore else '',
+            'home_team_color': home_team_boxscore.get('team', {}).get('color', '') if home_team_boxscore else '',
+            'home_team_record': next((r.get('summary') for r in home_team_header.get('records', []) if r.get('type') == 'total'), None),
+            'home_team_rank': home_team_header.get('curatedRank', {}).get('current'),
+            'home_team_stats': home_team_stats,
+            'away_team_name': away_team_boxscore.get('team', {}).get('displayName', '') if away_team_boxscore else '',
+            'away_team_logo': away_team_boxscore.get('team', {}).get('logo', '') if away_team_boxscore else '',
+            'away_team_color': away_team_boxscore.get('team', {}).get('color', '') if away_team_boxscore else '',
+            'away_team_record': next((r.get('summary') for r in away_team_header.get('records', []) if r.get('type') == 'total'), None),
+            'away_team_rank': away_team_header.get('curatedRank', {}).get('current'),
+            'away_team_stats': away_team_stats,
+            'leaders': data.get('leaders', []),
+            'predictor': data.get('predictor', {}),
+            'broadcasts': data.get('broadcasts', []),
+            'odds': data.get('odds', []),
+            'news': data.get('news', {}).get('articles', []),
+            'source': 'espn'
+        }
+
+        return preview
+
+    except Exception as e:
+        print(f"Error fetching preview from ESPN API: {e}")
+        return {}
+
+
 async def fetch_box_score_from_espn(event_id: int) -> Dict[str, Any]:
     """Fetch box score from ESPN API for a specific game"""
     try:
@@ -380,6 +450,15 @@ async def get_game_detail(event_id: int):
             game_dict["prediction"] = dict_from_row(prediction)
 
         return game_dict
+
+
+@app.get("/api/games/{event_id}/preview")
+async def get_game_preview(event_id: int):
+    """Get game preview information"""
+    preview = await fetch_game_preview_from_espn(event_id)
+    if preview:
+        return preview
+    raise HTTPException(status_code=404, detail="Game preview not found")
 
 
 @app.get("/api/teams")
