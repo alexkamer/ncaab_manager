@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PlayerHeadshot from "./PlayerHeadshot";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -412,16 +413,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                         href={`/players/${player.athlete_id}`}
                         className="flex items-center gap-3 group"
                       >
-                        <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-                          <img
-                            src={`https://a.espncdn.com/i/headshots/mens-college-basketball/players/full/${player.athlete_id}.png`}
-                            alt={player.full_name}
-                            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
-                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                              e.currentTarget.src = 'https://a.espncdn.com/i/headshots/nophoto.png';
-                            }}
-                          />
-                        </div>
+                        <PlayerHeadshot athleteId={player.athlete_id} fullName={player.full_name} />
                         <span className="text-sm font-medium text-blue-600 group-hover:text-blue-800">
                           {player.full_name}
                         </span>
