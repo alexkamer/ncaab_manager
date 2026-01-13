@@ -15,9 +15,13 @@ interface Game {
   home_team_name: string;
   home_team_abbr: string;
   home_team_logo: string;
+  home_team_record?: string;
+  home_team_rank?: number;
   away_team_name: string;
   away_team_abbr: string;
   away_team_logo: string;
+  away_team_record?: string;
+  away_team_rank?: number;
   venue_name: string;
   spread?: number;
   over_under?: number;
@@ -135,8 +139,14 @@ export default async function GamesPage({
                         )}
                         <div>
                           <div className={`font-medium ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
+                            {game.away_team_rank && <span className="font-bold mr-1">#{game.away_team_rank}</span>}
                             {game.away_team_name}
                           </div>
+                          {game.away_team_record && (
+                            <div className="text-xs text-gray-500">
+                              {game.away_team_record}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -147,8 +157,14 @@ export default async function GamesPage({
                         )}
                         <div>
                           <div className={`font-medium ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
+                            {game.home_team_rank && <span className="font-bold mr-1">#{game.home_team_rank}</span>}
                             {game.home_team_name}
                           </div>
+                          {game.home_team_record && (
+                            <div className="text-xs text-gray-500">
+                              {game.home_team_record}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

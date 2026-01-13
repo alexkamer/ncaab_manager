@@ -135,6 +135,26 @@ async def fetch_games_from_espn(date: str) -> List[Dict[str, Any]]:
             # Get game time for scheduled games
             status_detail = status_obj.get('shortDetail', '')
 
+            # Get team records at game time
+            home_record = None
+            away_record = None
+            home_records = home_team.get('records', [])
+            away_records = away_team.get('records', [])
+
+            for record in home_records:
+                if record.get('type') == 'total' or record.get('name') == 'overall':
+                    home_record = record.get('summary')
+                    break
+
+            for record in away_records:
+                if record.get('type') == 'total' or record.get('name') == 'overall':
+                    away_record = record.get('summary')
+                    break
+
+            # Get rankings at game time
+            home_rank = home_team.get('curatedRank', {}).get('current')
+            away_rank = away_team.get('curatedRank', {}).get('current')
+
             # Get odds information (use first provider, typically DraftKings)
             odds_data = competition.get('odds', [])
             spread = None
@@ -168,9 +188,13 @@ async def fetch_games_from_espn(date: str) -> List[Dict[str, Any]]:
                 'home_team_name': home_team['team']['displayName'],
                 'home_team_abbr': home_team['team']['abbreviation'],
                 'home_team_logo': home_team['team'].get('logo', ''),
+                'home_team_record': home_record,
+                'home_team_rank': home_rank,
                 'away_team_name': away_team['team']['displayName'],
                 'away_team_abbr': away_team['team']['abbreviation'],
                 'away_team_logo': away_team['team'].get('logo', ''),
+                'away_team_record': away_record,
+                'away_team_rank': away_rank,
                 'spread': spread,
                 'over_under': over_under,
                 'favorite_abbr': favorite_abbr,
