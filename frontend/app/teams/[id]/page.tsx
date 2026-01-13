@@ -385,10 +385,10 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
               <thead className="bg-white">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    #
+                    Player
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
+                    #
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Position
@@ -406,17 +406,30 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {team.roster.map((player: any) => (
-                  <tr key={player.athlete_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {player.jersey || '-'}
-                    </td>
+                  <tr key={player.athlete_id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link
                         href={`/players/${player.athlete_id}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        className="flex items-center gap-3 group"
                       >
-                        {player.full_name}
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                          <img
+                            src={`https://a.espncdn.com/i/headshots/mens-college-basketball/players/full/${player.athlete_id}.png`}
+                            alt={player.full_name}
+                            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = `https://a.espncdn.com/i/headshots/nophoto.png`;
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-blue-600 group-hover:text-blue-800">
+                          {player.full_name}
+                        </span>
                       </Link>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {player.jersey || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {player.position_name || '-'}
