@@ -77,7 +77,14 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
             {/* Conference and Location */}
             <div className="flex items-center gap-2 text-base text-gray-600 mb-3">
               {team.conference_name && team.conference_name !== '' && (
-                <span className="font-medium">{team.conference_name}</span>
+                <>
+                  <span className="font-medium">{team.conference_name}</span>
+                  {standings.playoff_seed && (
+                    <span className="text-sm text-gray-500 ml-1">
+                      ({standings.playoff_seed}{standings.playoff_seed === 1 ? 'st' : standings.playoff_seed === 2 ? 'nd' : standings.playoff_seed === 3 ? 'rd' : 'th'})
+                    </span>
+                  )}
+                </>
               )}
               {((team.conference_name && team.conference_name !== '') && (team.venue_city || team.location)) && (
                 <span className="text-gray-400">•</span>
@@ -137,6 +144,58 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                 )}
               </div>
             )}
+
+            {/* Last 5 Games Visual & Next Game */}
+            <div className="flex items-center gap-6 mt-3 flex-wrap">
+              {completedGames.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Last 5:</span>
+                  <div className="flex gap-1">
+                    {completedGames.slice(0, 5).map((game: any, idx: number) => {
+                      const isHome = game.location === 'home';
+                      const teamScore = isHome ? game.home_score : game.away_score;
+                      const oppScore = isHome ? game.away_score : game.home_score;
+                      const won = teamScore > oppScore;
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white transition-transform hover:scale-125 ${
+                            won ? 'bg-green-500' : 'bg-red-500'
+                          }`}
+                          title={`${won ? 'W' : 'L'} vs ${game.opponent_name} ${teamScore}-${oppScore}`}
+                        >
+                          {won ? 'W' : 'L'}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {upcomingGames.length > 0 && (() => {
+                const nextGame = upcomingGames[upcomingGames.length - 1];
+                const gameDate = new Date(nextGame.date);
+                const now = new Date();
+                const daysUntil = Math.ceil((gameDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                const isHome = nextGame.location === 'home';
+
+                return (
+                  <Link
+                    href={`/games/${nextGame.event_id}`}
+                    className="flex items-center gap-2 text-sm hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <span className="text-gray-500">Next:</span>
+                    <span className="font-medium text-gray-900">
+                      {isHome ? 'vs' : '@'} {nextGame.opponent_name}
+                    </span>
+                    <span className="text-gray-500">
+                      {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `in ${daysUntil} days`}
+                    </span>
+                  </Link>
+                );
+              })()}
+            </div>
           </div>
         </div>
       </div>
