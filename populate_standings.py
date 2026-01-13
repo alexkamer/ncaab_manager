@@ -99,6 +99,10 @@ def populate_standings_for_season(db: Database, client: ESPNAPIClient, season: i
                         home_losses = 0
                         road_wins = 0
                         road_losses = 0
+                        vs_ap_wins = 0
+                        vs_ap_losses = 0
+                        vs_usa_wins = 0
+                        vs_usa_losses = 0
 
                         for record in records:
                             record_name = record.get('name', '').lower()
@@ -127,6 +131,12 @@ def populate_standings_for_season(db: Database, client: ESPNAPIClient, season: i
                                         elif record_name == 'road':
                                             road_wins = rec_wins
                                             road_losses = rec_losses
+                                        elif 'vs ap' in record_name or 'ap top 25' in record_name:
+                                            vs_ap_wins = rec_wins
+                                            vs_ap_losses = rec_losses
+                                        elif 'vs usa' in record_name or 'usa top 25' in record_name or ('coaches' in record_name and 'top' in record_name):
+                                            vs_usa_wins = rec_wins
+                                            vs_usa_losses = rec_losses
                                     except (ValueError, IndexError):
                                         pass
 
@@ -182,7 +192,8 @@ def populate_standings_for_season(db: Database, client: ESPNAPIClient, season: i
                             points_for, points_against, avg_points_for, avg_points_against,
                             point_diff, avg_point_diff,
                             streak, streak_count,
-                            home_wins, home_losses, road_wins, road_losses
+                            home_wins, home_losses, road_wins, road_losses,
+                            vs_ap_wins, vs_ap_losses, vs_usa_wins, vs_usa_losses
                         ))
 
                     except Exception as e:
@@ -207,8 +218,9 @@ def populate_standings_for_season(db: Database, client: ESPNAPIClient, season: i
                  points_for, points_against, avg_points_for, avg_points_against,
                  point_differential, avg_point_differential,
                  current_streak, streak_count,
-                 home_wins, home_losses, road_wins, road_losses)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 home_wins, home_losses, road_wins, road_losses,
+                 vs_ap_top25_wins, vs_ap_top25_losses, vs_usa_top25_wins, vs_usa_top25_losses)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 all_standings
             )

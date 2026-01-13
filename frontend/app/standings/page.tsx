@@ -23,8 +23,10 @@ interface Standing {
   home_losses: number;
   road_wins: number;
   road_losses: number;
-  ap_rank: number | null;
-  usa_rank: number | null;
+  vs_ap_top25_wins: number;
+  vs_ap_top25_losses: number;
+  vs_usa_top25_wins: number;
+  vs_usa_top25_losses: number;
 }
 
 interface Conference {
@@ -219,11 +221,11 @@ export default async function StandingsPage() {
                             );
                           })()}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
-                          {team.ap_rank || '-'}
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
+                          {team.vs_ap_top25_wins || team.vs_ap_top25_losses ? `${team.vs_ap_top25_wins}-${team.vs_ap_top25_losses}` : '-'}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
-                          {team.usa_rank || '-'}
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
+                          {team.vs_usa_top25_wins || team.vs_usa_top25_losses ? `${team.vs_usa_top25_wins}-${team.vs_usa_top25_losses}` : '-'}
                         </td>
                       </tr>
                     ))}
