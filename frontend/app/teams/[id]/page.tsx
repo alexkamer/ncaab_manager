@@ -43,21 +43,32 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
     <div className="space-y-6">
       {/* Team Header with Hero Background */}
       <div
-        className="border border-gray-200 p-6 relative overflow-hidden"
+        className="border border-gray-200 p-6 relative overflow-hidden transition-all duration-300 hover:shadow-lg"
         style={{
-          background: team.color ? `linear-gradient(135deg, #${team.color}15 0%, #${team.color}05 100%)` : undefined
+          background: team.color ? `linear-gradient(135deg, #${team.color}15 0%, #${team.color}05 100%)` : undefined,
+          borderLeftWidth: '6px',
+          borderLeftColor: team.color ? `#${team.color}` : '#d1d5db'
         }}
       >
         <div className="flex items-start space-x-6 relative z-10">
           {team.logo_url && (
-            <img src={team.logo_url} alt={team.display_name} className="w-32 h-32" />
+            <img
+              src={team.logo_url}
+              alt={team.display_name}
+              className="w-32 h-32 transition-transform duration-200 hover:scale-110 hover:drop-shadow-lg"
+            />
           )}
           <div className="flex-1">
             {/* Team Name and Rank */}
             <div className="flex items-center gap-3 mb-3">
-              <h1 className="text-4xl font-bold text-gray-900">{team.display_name}</h1>
+              <h1 className="text-4xl font-bold text-gray-900 transition-colors duration-200">{team.display_name}</h1>
               {ranking && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gray-900 text-white">
+                <span
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold text-white shadow-md transition-all duration-200 hover:shadow-xl hover:scale-105"
+                  style={{
+                    backgroundColor: team.color ? `#${team.color}` : '#1f2937'
+                  }}
+                >
                   #{ranking.current_rank}
                 </span>
               )}
@@ -119,7 +130,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                 {standings.current_streak && standings.streak_count && (
                   <>
                     <span className="text-gray-300">•</span>
-                    <div className={`font-semibold ${standings.current_streak.includes('-') || standings.current_streak === 'L' ? 'text-red-600' : 'text-green-600'}`}>
+                    <div className={`font-semibold px-2 py-0.5 rounded ${standings.current_streak.includes('-') || standings.current_streak === 'L' ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50'} ${standings.streak_count >= 3 && !(standings.current_streak.includes('-') || standings.current_streak === 'L') ? 'animate-pulse' : ''}`}>
                       {standings.current_streak.includes('-') ? 'L' : (standings.current_streak === 'W' ? 'W' : 'W')}{Math.abs(standings.streak_count)}
                     </div>
                   </>
