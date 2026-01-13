@@ -109,7 +109,7 @@ export default async function StandingsPage() {
           {Object.entries(standingsByConference)
             .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([conference, confStandings]) => (
-            <div key={conference} className="bg-white rounded-lg shadow border border-gray-200">
+            <div key={conference} className="border border-gray-200 mb-6">
               <div className="px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center space-x-3">
                   {confStandings[0]?.conference_logo && (
@@ -124,7 +124,7 @@ export default async function StandingsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full">
-                  <thead className="bg-gray-50 border-b-2 border-gray-200">
+                  <thead className="bg-white border-b-2 border-gray-200">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" rowSpan={2}>
 
@@ -174,7 +174,7 @@ export default async function StandingsPage() {
                   </thead>
                   <tbody className="bg-white">
                     {confStandings.map((team, index) => (
-                      <tr key={team.team_id} className={`hover:bg-gray-50 border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                      <tr key={team.team_id} className="hover:bg-gray-50 border-b border-gray-100 bg-white">
                         <td className="px-4 py-3 whitespace-nowrap">
                           <Link
                             href={`/teams/${team.team_id}`}
@@ -236,7 +236,7 @@ export default async function StandingsPage() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+        <div className="border border-gray-200 p-8 text-center text-gray-500">
           <p>No standings data available. Make sure the API server is running and standings are populated.</p>
         </div>
       )}

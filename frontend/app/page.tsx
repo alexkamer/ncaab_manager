@@ -77,16 +77,16 @@ function GameCard({ game }: { game: Game }) {
 
   return (
     <Link href={`/games/${game.event_id}`} className="block">
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl transition-all p-4 border border-gray-700/50 hover:border-gray-600">
-        <div className="text-xs text-gray-400 mb-2 flex items-center gap-2 flex-wrap">
+      <div className="border border-gray-200 hover:bg-gray-50 transition-all p-4">
+        <div className="text-xs text-gray-500 mb-2 flex items-center gap-2 flex-wrap">
           <span>{getRelativeTime()} • {game.venue_name}</span>
           {game.is_conference_game && (
-            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded font-medium border border-blue-500/30">
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded font-medium border border-blue-200">
               CONF
             </span>
           )}
-          {isLive && <span className="text-red-400 font-semibold">LIVE</span>}
-          {game.is_completed && <span className="text-green-400 font-semibold">FINAL</span>}
+          {isLive && <span className="text-red-600 font-semibold">LIVE</span>}
+          {game.is_completed && <span className="text-green-600 font-semibold">FINAL</span>}
         </div>
 
         <div className="space-y-3">
@@ -96,11 +96,11 @@ function GameCard({ game }: { game: Game }) {
               {game.away_team_logo && (
                 <img src={game.away_team_logo} alt={game.away_team_name} className="w-8 h-8" />
               )}
-              <span className={`font-medium ${awayWon ? 'text-white font-bold' : 'text-gray-300'}`}>
+              <span className={`font-medium ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
                 {game.away_team_name}
               </span>
             </div>
-            <span className={`text-2xl font-bold ${awayWon ? 'text-white' : 'text-gray-400'}`}>
+            <span className={`text-2xl font-bold ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
               {game.away_score || 0}
             </span>
           </div>
@@ -111,11 +111,11 @@ function GameCard({ game }: { game: Game }) {
               {game.home_team_logo && (
                 <img src={game.home_team_logo} alt={game.home_team_name} className="w-8 h-8" />
               )}
-              <span className={`font-medium ${homeWon ? 'text-white font-bold' : 'text-gray-300'}`}>
+              <span className={`font-medium ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
                 {game.home_team_name}
               </span>
             </div>
-            <span className={`text-2xl font-bold ${homeWon ? 'text-white' : 'text-gray-400'}`}>
+            <span className={`text-2xl font-bold ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
               {game.home_score || 0}
             </span>
           </div>
@@ -136,16 +136,16 @@ export default async function Home() {
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-white mb-2">NCAA Basketball</h1>
-        <p className="text-lg text-gray-300">Live scores, stats, and rankings</p>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">NCAA Basketball</h1>
+        <p className="text-lg text-gray-600">Live scores, stats, and rankings</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Games */}
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white">Recent Games</h2>
-            <Link href="/games" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+            <h2 className="text-2xl font-bold text-gray-900">Recent Games</h2>
+            <Link href="/games" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
               View All →
             </Link>
           </div>
@@ -157,9 +157,9 @@ export default async function Home() {
               ))}
             </div>
           ) : (
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-lg p-8 text-center text-gray-300 border border-gray-700/50">
+            <div className="border border-gray-200 p-8 text-center text-gray-500">
               <p>No recent games found. Make sure the API server is running.</p>
-              <p className="text-sm mt-2">Run: <code className="bg-gray-700/50 px-2 py-1 rounded text-gray-200">cd api && python main.py</code></p>
+              <p className="text-sm mt-2">Run: <code className="bg-gray-100 px-2 py-1 rounded text-gray-700">cd api && python main.py</code></p>
             </div>
           )}
         </div>
@@ -167,33 +167,33 @@ export default async function Home() {
         {/* AP Poll Rankings */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white">AP Poll Top 25</h2>
-            <Link href="/rankings" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+            <h2 className="text-2xl font-bold text-gray-900">AP Poll Top 25</h2>
+            <Link href="/rankings" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
               View All →
             </Link>
           </div>
 
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-gray-700/50">
+          <div className="border border-gray-200">
             {topRankings.length > 0 ? (
-              <div className="divide-y divide-gray-700/50">
+              <div className="divide-y divide-gray-200">
                 {topRankings.map((team: any) => (
                   <Link
                     key={team.team_id}
                     href={`/teams/${team.team_id}`}
-                    className="flex items-center p-3 hover:bg-gray-700/30 transition-colors"
+                    className="flex items-center p-3 hover:bg-gray-50 transition-colors"
                   >
-                    <span className="text-lg font-bold text-white w-8">{team.current_rank}</span>
+                    <span className="text-lg font-bold text-gray-900 w-8">{team.current_rank}</span>
                     {team.team_logo && (
                       <img src={team.team_logo} alt={team.team_name} className="w-6 h-6 mx-2" />
                     )}
                     <div className="flex-1">
-                      <div className="font-medium text-gray-100">{team.team_name}</div>
-                      <div className="text-xs text-gray-400">{team.record_summary}</div>
+                      <div className="font-medium text-gray-900">{team.team_name}</div>
+                      <div className="text-xs text-gray-500">{team.record_summary}</div>
                     </div>
                     {team.previous_rank && (
                       <span className={`text-sm font-medium ${
-                        team.previous_rank > team.current_rank ? 'text-green-400' :
-                        team.previous_rank < team.current_rank ? 'text-red-400' :
+                        team.previous_rank > team.current_rank ? 'text-green-600' :
+                        team.previous_rank < team.current_rank ? 'text-red-600' :
                         'text-gray-500'
                       }`}>
                         {team.trend}
@@ -203,7 +203,7 @@ export default async function Home() {
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-gray-400 text-sm">
+              <div className="p-4 text-center text-gray-500 text-sm">
                 No rankings data available
               </div>
             )}
@@ -213,17 +213,17 @@ export default async function Home() {
 
       {/* Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link href="/teams" className="bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-lg p-6 hover:shadow-xl transition-all border border-gray-700/50 hover:border-gray-600">
-          <h3 className="text-lg font-semibold text-white mb-2">Browse Teams</h3>
-          <p className="text-gray-300 text-sm">View all NCAA teams, stats, and schedules</p>
+        <Link href="/teams" className="border border-gray-200 p-6 hover:bg-gray-50 transition-all">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Browse Teams</h3>
+          <p className="text-gray-600 text-sm">View all NCAA teams, stats, and schedules</p>
         </Link>
-        <Link href="/players" className="bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-lg p-6 hover:shadow-xl transition-all border border-gray-700/50 hover:border-gray-600">
-          <h3 className="text-lg font-semibold text-white mb-2">Player Stats</h3>
-          <p className="text-gray-300 text-sm">Individual player statistics and profiles</p>
+        <Link href="/players" className="border border-gray-200 p-6 hover:bg-gray-50 transition-all">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Player Stats</h3>
+          <p className="text-gray-600 text-sm">Individual player statistics and profiles</p>
         </Link>
-        <Link href="/rankings" className="bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-lg p-6 hover:shadow-xl transition-all border border-gray-700/50 hover:border-gray-600">
-          <h3 className="text-lg font-semibold text-white mb-2">Rankings</h3>
-          <p className="text-gray-300 text-sm">AP Poll, Coaches Poll, and conference standings</p>
+        <Link href="/rankings" className="border border-gray-200 p-6 hover:bg-gray-50 transition-all">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Rankings</h3>
+          <p className="text-gray-600 text-sm">AP Poll, Coaches Poll, and conference standings</p>
         </Link>
       </div>
     </div>

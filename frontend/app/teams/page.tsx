@@ -73,7 +73,7 @@ export default async function TeamsPage() {
           {Object.entries(teamsByConference)
             .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([conference, confTeams]) => (
-            <div key={conference} className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <div key={conference} className="border border-gray-200 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">{conference}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {confTeams.map((team) => (
@@ -98,7 +98,7 @@ export default async function TeamsPage() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+        <div className="border border-gray-200 p-8 text-center text-gray-500">
           <p>No teams found. Make sure the API server is running.</p>
         </div>
       )}

@@ -29,10 +29,10 @@ export default async function RankingsPage() {
       </div>
 
       {rankingsData.rankings.length > 0 ? (
-        <div className="bg-white rounded-lg shadow border border-gray-200">
+        <div className="border border-gray-200">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-white">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Rank
@@ -100,7 +100,7 @@ export default async function RankingsPage() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+        <div className="border border-gray-200 p-8 text-center text-gray-500">
           <p>No rankings data available. Make sure the API server is running and rankings are populated.</p>
         </div>
       )}

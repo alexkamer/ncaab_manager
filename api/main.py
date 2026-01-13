@@ -588,8 +588,45 @@ def get_teams(
         }
 
 
+async def fetch_team_info_from_espn(team_id: int, season: int) -> Dict[str, Any]:
+    """Fetch additional team info from ESPN Core API"""
+    try:
+        url = f"http://sports.core.api.espn.com/v2/sports/basketball/leagues/mens-college-basketball/seasons/{season}/teams/{team_id}?lang=en&region=us"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+
+            venue_info = {}
+            if 'venue' in data and isinstance(data['venue'], dict):
+                venue = data['venue']
+                venue_info['venue_name'] = venue.get('fullName')
+                if 'address' in venue:
+                    venue_info['venue_city'] = venue['address'].get('city')
+                    venue_info['venue_state'] = venue['address'].get('state')
+
+            conference_info = {}
+            if 'groups' in data and '$ref' in data['groups']:
+                group_url = data['groups']['$ref']
+                try:
+                    group_response = await client.get(group_url, timeout=10.0)
+                    group_response.raise_for_status()
+                    group_data = group_response.json()
+                    conference_info['conference_name'] = group_data.get('name')
+                    conference_info['conference_abbr'] = group_data.get('abbreviation')
+                except Exception as e:
+                    print(f"Error fetching conference info: {e}")
+
+            return {**venue_info, **conference_info}
+
+    except Exception as e:
+        print(f"Error fetching team info from ESPN: {e}")
+        return {}
+
+
 @app.get("/api/teams/{team_id}")
-def get_team_detail(team_id: int, season: int = Query(2026)):
+async def get_team_detail(team_id: int, season: int = Query(2026)):
     """Get detailed team information"""
     with get_db() as conn:
         cursor = conn.cursor()
@@ -613,7 +650,113 @@ def get_team_detail(team_id: int, season: int = Query(2026)):
 
         team_dict = dict_from_row(team)
 
-        # Get team's games
+        # Fetch additional info from ESPN if venue or conference is missing
+        if not team_dict.get('venue_name') or not team_dict.get('conference_name'):
+            espn_info = await fetch_team_info_from_espn(team_id, season)
+            # Only override if database values are null
+            for key, value in espn_info.items():
+                if not team_dict.get(key):
+                    team_dict[key] = value
+
+        # Get standings info (includes record, streaks, etc.)
+        cursor.execute("""
+            SELECT
+                st.*
+            FROM standings st
+            JOIN seasons s ON st.season_id = s.season_id
+            WHERE st.team_id = ? AND s.year = ?
+        """, (team_id, season))
+        standings = cursor.fetchone()
+        if standings:
+            team_dict["standings"] = dict_from_row(standings)
+
+        # Get current ranking
+        cursor.execute("""
+            SELECT
+                wr.current_rank,
+                wr.previous_rank,
+                wr.trend,
+                wr.points,
+                rt.type_code as ranking_type
+            FROM weekly_rankings wr
+            JOIN seasons s ON wr.season_id = s.season_id
+            JOIN ranking_types rt ON wr.ranking_type_id = rt.ranking_type_id
+            WHERE wr.team_id = ? AND s.year = ?
+            AND wr.week_number = (
+                SELECT MAX(week_number)
+                FROM weekly_rankings wr2
+                WHERE wr2.team_id = ? AND wr2.season_id = s.season_id
+            )
+        """, (team_id, season, team_id))
+        ranking = cursor.fetchone()
+        if ranking:
+            team_dict["ranking"] = dict_from_row(ranking)
+
+        # Get team statistical averages
+        cursor.execute("""
+            SELECT
+                COUNT(*) as games_played,
+                ROUND(AVG(CAST(ts.field_goals_made AS FLOAT)), 1) as avg_fgm,
+                ROUND(AVG(CAST(ts.field_goals_attempted AS FLOAT)), 1) as avg_fga,
+                ROUND(AVG(CAST(ts.field_goal_pct AS FLOAT)), 1) as avg_fg_pct,
+                ROUND(AVG(CAST(ts.three_point_made AS FLOAT)), 1) as avg_three_pm,
+                ROUND(AVG(CAST(ts.three_point_attempted AS FLOAT)), 1) as avg_three_pa,
+                ROUND(AVG(CAST(ts.three_point_pct AS FLOAT)), 1) as avg_three_pct,
+                ROUND(AVG(CAST(ts.free_throws_made AS FLOAT)), 1) as avg_ftm,
+                ROUND(AVG(CAST(ts.free_throws_attempted AS FLOAT)), 1) as avg_fta,
+                ROUND(AVG(CAST(ts.free_throw_pct AS FLOAT)), 1) as avg_ft_pct,
+                ROUND(AVG(CAST(ts.total_rebounds AS FLOAT)), 1) as avg_rebounds,
+                ROUND(AVG(CAST(ts.offensive_rebounds AS FLOAT)), 1) as avg_offensive_rebounds,
+                ROUND(AVG(CAST(ts.defensive_rebounds AS FLOAT)), 1) as avg_defensive_rebounds,
+                ROUND(AVG(CAST(ts.assists AS FLOAT)), 1) as avg_assists,
+                ROUND(AVG(CAST(ts.steals AS FLOAT)), 1) as avg_steals,
+                ROUND(AVG(CAST(ts.blocks AS FLOAT)), 1) as avg_blocks,
+                ROUND(AVG(CAST(ts.turnovers AS FLOAT)), 1) as avg_turnovers,
+                ROUND(AVG(CAST(ts.fouls AS FLOAT)), 1) as avg_fouls,
+                ROUND(AVG(CAST(CASE
+                    WHEN e.home_team_id = ? THEN e.home_score
+                    ELSE e.away_score
+                END AS FLOAT)), 1) as avg_points_scored,
+                ROUND(AVG(CAST(CASE
+                    WHEN e.home_team_id = ? THEN e.away_score
+                    ELSE e.home_score
+                END AS FLOAT)), 1) as avg_points_allowed
+            FROM team_statistics ts
+            JOIN events e ON ts.event_id = e.event_id
+            JOIN seasons s ON e.season_id = s.season_id
+            WHERE ts.team_id = ? AND s.year = ? AND e.is_completed = 1
+        """, (team_id, team_id, team_id, season))
+        stats = cursor.fetchone()
+        if stats:
+            team_dict["team_stats"] = dict_from_row(stats)
+
+        # Get team leaders (top 3 scorers, top rebounder, top assist leader)
+        cursor.execute("""
+            SELECT
+                a.athlete_id,
+                a.full_name,
+                a.display_name,
+                a.position_name,
+                COUNT(*) as games_played,
+                ROUND(AVG(CAST(ps.field_goals_made AS FLOAT) + CAST(ps.three_point_made AS FLOAT)), 1) as avg_fgm,
+                ROUND(AVG(CAST(ps.field_goals_made AS FLOAT) * 2 + CAST(ps.three_point_made AS FLOAT) * 3 + CAST(ps.free_throws_made AS FLOAT)), 1) as avg_points,
+                ROUND(AVG(CAST(ps.rebounds AS FLOAT)), 1) as avg_rebounds,
+                ROUND(AVG(CAST(ps.assists AS FLOAT)), 1) as avg_assists,
+                ROUND(AVG(CAST(ps.steals AS FLOAT)), 1) as avg_steals,
+                ROUND(AVG(CAST(ps.blocks AS FLOAT)), 1) as avg_blocks
+            FROM player_statistics ps
+            JOIN athletes a ON ps.athlete_id = a.athlete_id
+            JOIN events e ON ps.event_id = e.event_id
+            JOIN seasons s ON e.season_id = s.season_id
+            WHERE ps.team_id = ? AND s.year = ? AND e.is_completed = 1 AND ps.is_active = 1
+            GROUP BY ps.athlete_id
+            HAVING COUNT(*) >= 5
+            ORDER BY avg_points DESC
+            LIMIT 10
+        """, (team_id, season))
+        team_dict["leaders"] = [dict_from_row(row) for row in cursor.fetchall()]
+
+        # Get team's games with enhanced info (rankings, odds, broadcast)
         cursor.execute("""
             SELECT
                 e.event_id,
@@ -622,18 +765,55 @@ def get_team_detail(team_id: int, season: int = Query(2026)):
                 e.away_score,
                 e.is_completed,
                 e.venue_name,
+                e.broadcast_network,
+                e.is_conference_game,
                 CASE WHEN e.home_team_id = ? THEN 'home' ELSE 'away' END as location,
                 CASE WHEN e.home_team_id = ? THEN at.display_name ELSE ht.display_name END as opponent_name,
-                CASE WHEN e.home_team_id = ? THEN at.logo_url ELSE ht.logo_url END as opponent_logo
+                CASE WHEN e.home_team_id = ? THEN at.logo_url ELSE ht.logo_url END as opponent_logo,
+                CASE WHEN e.home_team_id = ? THEN at.team_id ELSE ht.team_id END as opponent_id,
+                go.spread,
+                go.over_under,
+                gp.home_win_probability,
+                gp.away_win_probability
             FROM events e
             JOIN teams ht ON e.home_team_id = ht.team_id
             JOIN teams at ON e.away_team_id = at.team_id
             JOIN seasons s ON e.season_id = s.season_id
+            LEFT JOIN game_odds go ON e.event_id = go.event_id
+            LEFT JOIN game_predictions gp ON e.event_id = gp.event_id
             WHERE (e.home_team_id = ? OR e.away_team_id = ?) AND s.year = ?
             ORDER BY e.date DESC
             LIMIT 50
-        """, (team_id, team_id, team_id, team_id, team_id, season))
-        team_dict["games"] = [dict_from_row(row) for row in cursor.fetchall()]
+        """, (team_id, team_id, team_id, team_id, team_id, team_id, season))
+
+        games = [dict_from_row(row) for row in cursor.fetchall()]
+
+        # Get opponent rankings at the time of each game
+        for game in games:
+            opponent_id = game['opponent_id']
+            game_date = game['date']
+
+            # Find the most recent ranking before or at the game date
+            cursor.execute("""
+                SELECT wr.current_rank, rt.type_code
+                FROM weekly_rankings wr
+                JOIN ranking_types rt ON wr.ranking_type_id = rt.ranking_type_id
+                JOIN seasons s ON wr.season_id = s.season_id
+                WHERE wr.team_id = ?
+                AND s.year = ?
+                AND rt.type_code = 'ap'
+                AND wr.ranking_date <= ?
+                ORDER BY wr.ranking_date DESC
+                LIMIT 1
+            """, (opponent_id, season, game_date))
+
+            rank_result = cursor.fetchone()
+            if rank_result:
+                game['opponent_rank'] = rank_result[0]
+            else:
+                game['opponent_rank'] = None
+
+        team_dict["games"] = games
 
         # Get roster
         cursor.execute("""

@@ -30,44 +30,289 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
     );
   }
 
+  const standings = team.standings || {};
+  const ranking = team.ranking;
+  const teamStats = team.team_stats || {};
+  const leaders = team.leaders || [];
+
+  // Separate completed and upcoming games
+  const completedGames = (team.games || []).filter((g: any) => g.is_completed);
+  const upcomingGames = (team.games || []).filter((g: any) => !g.is_completed);
+
   return (
     <div className="space-y-6">
-      {/* Team Header */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-        <div className="flex items-start space-x-6">
+      {/* Team Header with Hero Background */}
+      <div
+        className="border border-gray-200 p-6 relative overflow-hidden"
+        style={{
+          background: team.color ? `linear-gradient(135deg, #${team.color}15 0%, #${team.color}05 100%)` : undefined
+        }}
+      >
+        <div className="flex items-start space-x-6 relative z-10">
           {team.logo_url && (
-            <img src={team.logo_url} alt={team.display_name} className="w-24 h-24" />
+            <img src={team.logo_url} alt={team.display_name} className="w-32 h-32" />
           )}
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900">{team.display_name}</h1>
-            <p className="text-lg text-gray-600 mt-1">{team.conference_name}</p>
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Venue:</span>
-                <div className="font-medium">{team.venue_name}</div>
-              </div>
-              <div>
-                <span className="text-gray-500">Location:</span>
-                <div className="font-medium">{team.venue_city}, {team.venue_state}</div>
-              </div>
-              <div>
-                <span className="text-gray-500">Abbreviation:</span>
-                <div className="font-medium">{team.abbreviation}</div>
-              </div>
+            {/* Team Name and Rank */}
+            <div className="flex items-center gap-3 mb-3">
+              <h1 className="text-4xl font-bold text-gray-900">{team.display_name}</h1>
+              {ranking && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gray-900 text-white">
+                  #{ranking.current_rank}
+                </span>
+              )}
             </div>
+
+            {/* Conference and Location */}
+            <div className="flex items-center gap-2 text-base text-gray-600 mb-3">
+              {team.conference_name && team.conference_name !== '' && (
+                <span className="font-medium">{team.conference_name}</span>
+              )}
+              {((team.conference_name && team.conference_name !== '') && (team.venue_city || team.location)) && (
+                <span className="text-gray-400">•</span>
+              )}
+              {(team.venue_city || team.location) && (
+                <span>{team.venue_city || team.location}{team.venue_state && `, ${team.venue_state}`}</span>
+              )}
+              {team.venue_name && team.venue_name !== '' && (
+                <>
+                  <span className="text-gray-400">•</span>
+                  <span>🏟️ {team.venue_name}</span>
+                </>
+              )}
+            </div>
+
+            {/* All Records in One Row */}
+            {standings.wins !== undefined && (
+              <div className="flex items-center gap-4 text-base">
+                <div>
+                  <span className="font-bold text-gray-900">{standings.wins}-{standings.losses}</span>
+                  <span className="text-gray-500 ml-1.5">Overall</span>
+                </div>
+                {standings.conference_wins !== undefined && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <div>
+                      <span className="font-bold text-gray-900">{standings.conference_wins}-{standings.conference_losses}</span>
+                      <span className="text-gray-500 ml-1.5">Conference</span>
+                    </div>
+                  </>
+                )}
+                {(standings.home_wins !== undefined && standings.home_wins !== null) && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <div>
+                      <span className="font-bold text-gray-900">{standings.home_wins}-{standings.home_losses || 0}</span>
+                      <span className="text-gray-500 ml-1.5">Home</span>
+                    </div>
+                  </>
+                )}
+                {(standings.road_wins !== undefined && standings.road_wins !== null) && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <div>
+                      <span className="font-bold text-gray-900">{standings.road_wins}-{standings.road_losses || 0}</span>
+                      <span className="text-gray-500 ml-1.5">Road</span>
+                    </div>
+                  </>
+                )}
+                {standings.current_streak && standings.streak_count && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <div className={`font-semibold ${standings.current_streak.includes('-') || standings.current_streak === 'L' ? 'text-red-600' : 'text-green-600'}`}>
+                      {standings.current_streak.includes('-') ? 'L' : (standings.current_streak === 'W' ? 'W' : 'W')}{Math.abs(standings.streak_count)}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Team Stats Card */}
+        {teamStats.avg_points_scored && (
+          <div className="border border-gray-200 p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Team Averages</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Points Per Game</span>
+                <span className="text-xl font-bold text-gray-900">{teamStats.avg_points_scored}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Points Allowed</span>
+                <span className="text-xl font-bold text-gray-900">{teamStats.avg_points_allowed}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Point Differential</span>
+                <span className={`text-xl font-bold ${(teamStats.avg_points_scored - teamStats.avg_points_allowed) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {(teamStats.avg_points_scored - teamStats.avg_points_allowed) > 0 ? '+' : ''}{(teamStats.avg_points_scored - teamStats.avg_points_allowed).toFixed(1)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-gray-600">Field Goal %</span>
+                <span className="font-bold text-gray-900">{teamStats.avg_fg_pct}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">3-Point %</span>
+                <span className="font-bold text-gray-900">{teamStats.avg_three_pct}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Free Throw %</span>
+                <span className="font-bold text-gray-900">{teamStats.avg_ft_pct}%</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* More Team Stats */}
+        {teamStats.avg_rebounds && (
+          <div className="border border-gray-200 p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Team Statistics</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Rebounds</span>
+                <span className="text-xl font-bold text-gray-900">{teamStats.avg_rebounds}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Assists</span>
+                <span className="text-xl font-bold text-gray-900">{teamStats.avg_assists}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Steals</span>
+                <span className="text-xl font-bold text-gray-900">{teamStats.avg_steals}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Blocks</span>
+                <span className="text-xl font-bold text-gray-900">{teamStats.avg_blocks}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-gray-600">Turnovers</span>
+                <span className="text-xl font-bold text-gray-900">{teamStats.avg_turnovers}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Fouls</span>
+                <span className="text-xl font-bold text-gray-900">{teamStats.avg_fouls}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Record Splits */}
+        {standings.home_wins !== undefined && (
+          <div className="border border-gray-200 p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Record Breakdown</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Home Record</span>
+                <span className="text-xl font-bold text-gray-900">{standings.home_wins || 0}-{standings.home_losses || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Road Record</span>
+                <span className="text-xl font-bold text-gray-900">{standings.road_wins || 0}-{standings.road_losses || 0}</span>
+              </div>
+              {/* Neutral site games if they exist */}
+              {(standings.wins - standings.home_wins - standings.road_wins > 0) && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Neutral Site</span>
+                  <span className="text-xl font-bold text-gray-900">
+                    {standings.wins - standings.home_wins - standings.road_wins}-{standings.losses - standings.home_losses - standings.road_losses}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Conference</span>
+                <span className="text-xl font-bold text-gray-900">{standings.conference_wins || 0}-{standings.conference_losses || 0}</span>
+              </div>
+              {standings.vs_ap_top25_wins !== undefined && (
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="text-gray-600">vs AP Top 25</span>
+                  <span className="text-xl font-bold text-gray-900">{standings.vs_ap_top25_wins || 0} wins</span>
+                </div>
+              )}
+              {standings.playoff_seed && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Conference Seed</span>
+                  <span className="text-xl font-bold text-gray-900">#{standings.playoff_seed}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Team Leaders */}
+      {leaders.length > 0 && (
+        <div className="border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">Team Leaders</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+            {leaders.slice(0, 3).map((leader: any, idx: number) => (
+              <Link
+                key={leader.athlete_id}
+                href={`/players/${leader.athlete_id}`}
+                className="p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all"
+              >
+                <div className="text-sm text-gray-500 mb-1">
+                  {idx === 0 ? 'Leading Scorer' : idx === 1 ? '2nd Scorer' : '3rd Scorer'}
+                </div>
+                <div className="font-bold text-gray-900 text-lg">{leader.display_name}</div>
+                <div className="text-sm text-gray-600 mb-2">{leader.position_name}</div>
+                <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                  <div>
+                    <div className="font-bold text-gray-900">{leader.avg_points}</div>
+                    <div className="text-gray-500 text-xs">PPG</div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-900">{leader.avg_rebounds}</div>
+                    <div className="text-gray-500 text-xs">RPG</div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-900">{leader.avg_assists}</div>
+                    <div className="text-gray-500 text-xs">APG</div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Venue Information */}
+      {team.venue_name && (
+        <div className="border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Home Venue</h2>
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <div className="text-2xl font-bold text-gray-900 mb-2">{team.venue_name}</div>
+              <div className="text-gray-600">
+                {team.venue_city}, {team.venue_state}
+              </div>
+            </div>
+            {standings.home_wins !== undefined && (
+              <div className="text-right">
+                <div className="text-sm text-gray-500 mb-1">Home Record</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {standings.home_wins}-{(standings.wins - standings.home_wins - standings.road_wins) || 0}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Roster */}
       {team.roster && team.roster.length > 0 && (
-        <div className="bg-white rounded-lg shadow border border-gray-200">
+        <div className="border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-bold text-gray-900">Roster</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-white">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     #
@@ -123,19 +368,77 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
-      {/* Recent Games */}
-      {team.games && team.games.length > 0 && (
-        <div className="bg-white rounded-lg shadow border border-gray-200">
+      {/* Recent Form */}
+      {completedGames.length > 0 && (
+        <div className="border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Recent Games</h2>
+            <h2 className="text-xl font-bold text-gray-900">Recent Form</h2>
+          </div>
+          <div className="p-6">
+            {/* Detailed recent games list */}
+            <div className="space-y-2">
+              {completedGames.slice(0, 10).map((game: any) => {
+                const isHome = game.location === 'home';
+                const teamScore = isHome ? game.home_score : game.away_score;
+                const oppScore = isHome ? game.away_score : game.home_score;
+                const won = teamScore > oppScore;
+
+                return (
+                  <Link
+                    key={game.event_id}
+                    href={`/games/${game.event_id}`}
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+                  >
+                    <div className="flex items-center space-x-4 flex-1">
+                      <div className="text-sm text-gray-500 w-20">
+                        {new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-white text-sm ${
+                        won ? 'bg-green-500' : 'bg-red-500'
+                      }`}>
+                        {won ? 'W' : 'L'}
+                      </div>
+                      <div className="flex items-center space-x-2 flex-1">
+                        <span className="text-sm text-gray-500 w-8">{isHome ? 'vs' : '@'}</span>
+                        {game.opponent_logo && (
+                          <img src={game.opponent_logo} alt={game.opponent_name} className="w-8 h-8" />
+                        )}
+                        <div className="flex items-center gap-2">
+                          {game.opponent_rank && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-gray-900 text-white">
+                              #{game.opponent_rank}
+                            </span>
+                          )}
+                          <span className="font-medium text-gray-900">{game.opponent_name}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {game.is_conference_game === 1 && (
+                        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">CONF</span>
+                      )}
+                      <div className="text-sm font-bold text-gray-900">
+                        {teamScore}-{oppScore}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Schedule */}
+      {upcomingGames.length > 0 && (
+        <div className="border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">Upcoming Schedule</h2>
           </div>
           <div className="divide-y divide-gray-200">
-            {team.games.slice(0, 10).map((game: any) => {
+            {upcomingGames.map((game: any) => {
               const isHome = game.location === 'home';
-              const teamScore = isHome ? game.home_score : game.away_score;
-              const oppScore = isHome ? game.away_score : game.home_score;
-              const won = game.is_completed && teamScore > oppScore;
-              const lost = game.is_completed && teamScore < oppScore;
+              const winProb = isHome ? game.home_win_probability : game.away_win_probability;
 
               return (
                 <Link
@@ -144,30 +447,49 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                   className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center space-x-4 flex-1">
-                    <div className="text-sm text-gray-500 w-20">
-                      {new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    <div className="text-sm w-32">
+                      <div className="font-medium text-gray-900">
+                        {new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="text-gray-500">
+                        {new Date(game.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      </div>
                     </div>
-                    <div className={`w-4 h-4 rounded-full ${
-                      won ? 'bg-green-500' : lost ? 'bg-red-500' : 'bg-gray-300'
-                    }`}></div>
                     <div className="flex items-center space-x-2 flex-1">
-                      <span className="text-sm text-gray-500">{isHome ? 'vs' : '@'}</span>
+                      <span className="text-sm text-gray-500 w-8">{isHome ? 'vs' : '@'}</span>
                       {game.opponent_logo && (
-                        <img src={game.opponent_logo} alt={game.opponent_name} className="w-6 h-6" />
+                        <img src={game.opponent_logo} alt={game.opponent_name} className="w-8 h-8" />
                       )}
-                      <span className="font-medium text-gray-900">{game.opponent_name}</span>
+                      <div className="flex items-center gap-2">
+                        {game.opponent_rank && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-gray-900 text-white">
+                            #{game.opponent_rank}
+                          </span>
+                        )}
+                        <span className="font-medium text-gray-900">{game.opponent_name}</span>
+                      </div>
                     </div>
                   </div>
-                  {game.is_completed ? (
-                    <div className="text-sm font-medium">
-                      <span className={won ? 'text-green-600' : 'text-red-600'}>
-                        {won ? 'W' : 'L'}
+                  <div className="flex items-center gap-4">
+                    {game.is_conference_game === 1 && (
+                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">CONF</span>
+                    )}
+                    {game.broadcast_network && game.broadcast_network !== '' && (
+                      <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        {game.broadcast_network}
                       </span>
-                      <span className="ml-2 text-gray-900">{teamScore}-{oppScore}</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-500">Scheduled</span>
-                  )}
+                    )}
+                    {winProb && (
+                      <span className="text-sm font-medium text-gray-900">
+                        {Math.round(winProb)}% win prob
+                      </span>
+                    )}
+                    {game.spread && (
+                      <span className="text-sm font-medium text-gray-600">
+                        {game.spread > 0 ? '+' : ''}{game.spread}
+                      </span>
+                    )}
+                  </div>
                 </Link>
               );
             })}
