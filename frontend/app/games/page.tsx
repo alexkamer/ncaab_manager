@@ -139,7 +139,7 @@ export default async function GamesPage({
                         )}
                         <div>
                           <div className={`font-medium ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
-                            {game.away_team_rank && <span className="font-bold mr-1">#{game.away_team_rank}</span>}
+                            {game.away_team_rank && game.away_team_rank <= 25 && <span className="font-bold mr-1">#{game.away_team_rank}</span>}
                             {game.away_team_name}
                           </div>
                           {game.away_team_record && (
@@ -157,7 +157,7 @@ export default async function GamesPage({
                         )}
                         <div>
                           <div className={`font-medium ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
-                            {game.home_team_rank && <span className="font-bold mr-1">#{game.home_team_rank}</span>}
+                            {game.home_team_rank && game.home_team_rank <= 25 && <span className="font-bold mr-1">#{game.home_team_rank}</span>}
                             {game.home_team_name}
                           </div>
                           {game.home_team_record && (
