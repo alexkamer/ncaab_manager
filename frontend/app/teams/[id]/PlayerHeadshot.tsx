@@ -13,7 +13,7 @@ export default function PlayerHeadshot({ athleteId, fullName }: PlayerHeadshotPr
         alt={fullName}
         className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
         onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-          e.currentTarget.src = 'https://a.espncdn.com/i/headshots/nophoto.png';
+          e.currentTarget.src = 'https://a.espncdn.com/combiner/i?img=/i/headshots/nophoto.png';
         }}
       />
     </div>
