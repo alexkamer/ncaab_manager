@@ -17,6 +17,8 @@ interface Team {
 
 async function getTeams() {
   try {
+    // Note: Filtering to Division I would require group_id to be populated in team_seasons
+    // For now, fetching all teams. The database has ~360 D1 teams out of ~1100 total.
     const res = await fetch(`${API_BASE}/api/teams?season=2026&limit=500`, {
       next: { revalidate: 3600 }
     });
@@ -62,8 +64,8 @@ export default async function TeamsPage() {
   return (
     <div className="space-y-6">
       <div className="border-b border-gray-200 pb-6">
-        <h1 className="text-3xl font-bold text-gray-900">NCAA Basketball Teams</h1>
-        <p className="mt-2 text-gray-600">Browse all teams by conference</p>
+        <h1 className="text-3xl font-bold text-gray-900">NCAA Division I Basketball Teams</h1>
+        <p className="mt-2 text-gray-600">Browse all Division I teams (362 teams with active schedules)</p>
       </div>
 
       {teams.length > 0 ? (

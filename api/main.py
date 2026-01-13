@@ -184,6 +184,7 @@ def get_game_detail(event_id: int):
 def get_teams(
     search: Optional[str] = Query(None, description="Search by team name"),
     conference_id: Optional[int] = Query(None, description="Filter by conference"),
+    division: Optional[int] = Query(None, description="Filter by division (e.g., 50 for Division I)"),
     season: int = Query(2026, description="Season year"),
     limit: int = Query(100, le=500),
     offset: int = Query(0)
@@ -210,6 +211,11 @@ def get_teams(
             LEFT JOIN seasons s ON ts.season_id = s.season_id
             LEFT JOIN groups g ON ts.group_id = g.group_id
             WHERE s.year = ?
+            AND (
+                SELECT COUNT(*) FROM events e
+                WHERE (e.home_team_id = t.team_id OR e.away_team_id = t.team_id)
+                AND e.season_id = s.season_id
+            ) >= 5
         """
         params = [season]
 
@@ -220,6 +226,10 @@ def get_teams(
         if conference_id:
             query += " AND ts.group_id = ?"
             params.append(conference_id)
+
+        if division:
+            query += " AND g.parent_group_id = ?"
+            params.append(division)
 
         query += " ORDER BY t.display_name LIMIT ? OFFSET ?"
         params.extend([limit, offset])
