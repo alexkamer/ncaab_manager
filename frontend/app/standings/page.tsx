@@ -119,75 +119,83 @@ export default async function StandingsPage() {
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full">
+                  <thead className="bg-gray-50 border-b-2 border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Team
+                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider" rowSpan={2}>
+
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Conf
+                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300" colSpan={3}>
+                        Conference
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider" colSpan={4}>
                         Overall
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Home
+                    </tr>
+                    <tr>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        W-L
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Away
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Win %
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
                         GB
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Streak
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase border-r border-gray-300">
+                        PCT
+                      </th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        W-L
+                      </th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        HOME
+                      </th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        AWAY
+                      </th>
+                      <th className="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        STRK
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white">
                     {confStandings.map((team, index) => (
-                      <tr key={team.team_id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                      <tr key={team.team_id} className={`hover:bg-gray-50 border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <Link
                             href={`/teams/${team.team_id}`}
                             className="flex items-center space-x-3 text-blue-600 hover:text-blue-800"
                           >
                             {team.team_logo && (
-                              <img src={team.team_logo} alt={team.team_name} className="w-8 h-8" />
+                              <img src={team.team_logo} alt={team.team_name} className="w-6 h-6" />
                             )}
-                            <span className="font-medium">{team.team_name}</span>
+                            <span className="font-medium text-sm">{team.team_name}</span>
                           </Link>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
                           {team.conference_wins}-{team.conference_losses}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
-                          {team.wins}-{team.losses}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                          {team.home_wins}-{team.home_losses}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
-                          {team.road_wins}-{team.road_losses}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
-                          {team.conference_win_percentage.toFixed(3)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
                           {team.games_behind === 0 ? '-' : team.games_behind.toFixed(1)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900 border-r border-gray-300">
+                          {team.conference_win_percentage.toFixed(3)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
+                          {team.wins}-{team.losses}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
+                          {team.home_wins}-{team.home_losses}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-500">
+                          {team.road_wins}-{team.road_losses}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
                           {(() => {
                             const streakNum = parseInt(team.current_streak || '0');
                             if (streakNum === 0) return <span className="text-gray-400">-</span>;
                             const isWinStreak = streakNum > 0;
                             return (
                               <span className={`font-semibold ${
-                                isWinStreak ? 'text-emerald-700' : 'text-rose-700'
+                                isWinStreak ? 'text-emerald-600' : 'text-rose-600'
                               }`}>
                                 {isWinStreak ? 'W' : 'L'}{Math.abs(streakNum)}
                               </span>
