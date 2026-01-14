@@ -139,7 +139,7 @@ def parse_player_statistics(event_id: int, team_id: int, player_data: Dict) -> O
     if not stats or len(stats) < 10:
         return None
 
-    # Parse stats (order: MIN, PTS, FG, 3PT, FT, REB, AST, BLK, STL, OREB, DREB, TO, PF)
+    # Parse stats (order: MIN, PTS, FG, 3PT, FT, REB, AST, BLK, STL, OREB, DREB, PF, TO)
     def parse_stat(index, default=None):
         try:
             val = stats[index]
@@ -166,14 +166,14 @@ def parse_player_statistics(event_id: int, team_id: int, player_data: Dict) -> O
     three_made, three_att = parse_ma(parse_stat(3))
     ft_made, ft_att = parse_ma(parse_stat(4))
 
-    # Individual stats (correct order from ESPN API)
+    # Individual stats (correct order from ESPN API: MIN, PTS, FG, 3PT, FT, REB, AST, TO, STL, BLK, OREB, DREB, PF)
     rebounds = int(parse_stat(5, 0)) if parse_stat(5) else None      # Total rebounds
     assists = int(parse_stat(6, 0)) if parse_stat(6) else None       # Assists
-    blocks = int(parse_stat(7, 0)) if parse_stat(7) else None        # Blocks
+    turnovers = int(parse_stat(7, 0)) if parse_stat(7) else None     # Turnovers
     steals = int(parse_stat(8, 0)) if parse_stat(8) else None        # Steals
-    off_reb = int(parse_stat(9, 0)) if parse_stat(9) else None       # Offensive rebounds
-    def_reb = int(parse_stat(10, 0)) if parse_stat(10) else None     # Defensive rebounds
-    turnovers = int(parse_stat(11, 0)) if parse_stat(11) else None   # Turnovers
+    blocks = int(parse_stat(9, 0)) if parse_stat(9) else None        # Blocks
+    off_reb = int(parse_stat(10, 0)) if parse_stat(10) else None     # Offensive rebounds
+    def_reb = int(parse_stat(11, 0)) if parse_stat(11) else None     # Defensive rebounds
     fouls = int(parse_stat(12, 0)) if parse_stat(12) else None       # Personal fouls
 
     return (
