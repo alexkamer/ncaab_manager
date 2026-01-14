@@ -70,6 +70,7 @@ function GameCard({ game, rankingMap }: { game: Game; rankingMap?: Map<number, n
   const gameDate = new Date(game.date);
   const now = new Date();
   const isLive = game.status.toLowerCase().includes("live") || game.status.toLowerCase().includes("in progress");
+  const hasStarted = isLive || game.is_completed;
 
   const awayWon = game.is_completed && (game.away_score || 0) > (game.home_score || 0);
   const homeWon = game.is_completed && (game.home_score || 0) > (game.away_score || 0);
@@ -125,9 +126,11 @@ function GameCard({ game, rankingMap }: { game: Game; rankingMap?: Map<number, n
                 </span>
               </div>
             </div>
-            <span className={`text-2xl font-bold flex-shrink-0 ml-2 ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
-              {game.away_score || 0}
-            </span>
+            {hasStarted && (
+              <span className={`text-2xl font-bold flex-shrink-0 ml-2 ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
+                {game.away_score || 0}
+              </span>
+            )}
           </div>
 
           {/* Home Team */}
@@ -145,9 +148,11 @@ function GameCard({ game, rankingMap }: { game: Game; rankingMap?: Map<number, n
                 </span>
               </div>
             </div>
-            <span className={`text-2xl font-bold flex-shrink-0 ml-2 ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
-              {game.home_score || 0}
-            </span>
+            {hasStarted && (
+              <span className={`text-2xl font-bold flex-shrink-0 ml-2 ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
+                {game.home_score || 0}
+              </span>
+            )}
           </div>
         </div>
       </div>
