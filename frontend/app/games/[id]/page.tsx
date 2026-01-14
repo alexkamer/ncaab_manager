@@ -320,9 +320,12 @@ export default async function GameDetailPage({
                                   />
                                 )}
                                 <div>
-                                  <div className="font-medium text-gray-900">
+                                  <Link
+                                    href={`/players/${player.athlete?.id}`}
+                                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
                                     {player.athlete?.displayName}
-                                  </div>
+                                  </Link>
                                   <div className="text-xs text-gray-500">
                                     {player.athlete?.position.abbreviation} • #{player.athlete?.jersey}
                                   </div>
@@ -359,9 +362,12 @@ export default async function GameDetailPage({
                                   />
                                 )}
                                 <div>
-                                  <div className="font-medium text-gray-900">
+                                  <Link
+                                    href={`/players/${player.athlete?.id}`}
+                                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
                                     {player.athlete?.displayName}
-                                  </div>
+                                  </Link>
                                   <div className="text-xs text-gray-500">
                                     {player.athlete?.position.abbreviation} • #{player.athlete?.jersey}
                                   </div>
@@ -445,9 +451,12 @@ export default async function GameDetailPage({
                           {starters.map((player) => (
                             <tr key={`starter-${player.athlete_id}`} className="hover:bg-gray-50 border-t border-gray-200">
                               <td className="px-4 py-3">
-                                <div className="font-medium text-gray-900">
+                                <Link
+                                  href={`/players/${player.athlete_id}`}
+                                  className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                >
                                   {player.display_name || player.full_name}
-                                </div>
+                                </Link>
                                 <div className="text-xs text-gray-500">{player.position_name}</div>
                               </td>
                               <td className="text-center px-2 py-3">{player.minutes_played || 0}</td>
@@ -482,9 +491,12 @@ export default async function GameDetailPage({
                           {bench.map((player) => (
                             <tr key={`bench-${player.athlete_id}`} className="hover:bg-gray-50 border-t border-gray-200">
                               <td className="px-4 py-3">
-                                <div className="font-medium text-gray-900">
+                                <Link
+                                  href={`/players/${player.athlete_id}`}
+                                  className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                >
                                   {player.display_name || player.full_name}
-                                </div>
+                                </Link>
                                 <div className="text-xs text-gray-500">{player.position_name}</div>
                               </td>
                               <td className="text-center px-2 py-3">{player.minutes_played || 0}</td>
