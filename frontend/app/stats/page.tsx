@@ -55,6 +55,8 @@ export default function StatsLeadersPage() {
     min_attempts: null,
   });
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<string>("stat_value");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     async function fetchLeaders() {
@@ -92,6 +94,71 @@ export default function StatsLeadersPage() {
     }
     fetchLeaders();
   }, [statCategory]);
+
+  // Reset sort when category changes
+  useEffect(() => {
+    setSortBy("stat_value");
+    setSortOrder("desc");
+  }, [statCategory]);
+
+  // Sort leaders
+  const sortedLeaders = useMemo(() => {
+    const leaders = [...leadersData.leaders];
+
+    leaders.sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortBy) {
+        case "stat_value":
+          aVal = a.stat_value;
+          bVal = b.stat_value;
+          break;
+        case "ppg":
+          aVal = a.ppg;
+          bVal = b.ppg;
+          break;
+        case "rpg":
+          aVal = a.rpg;
+          bVal = b.rpg;
+          break;
+        case "apg":
+          aVal = a.apg;
+          bVal = b.apg;
+          break;
+        case "games_played":
+          aVal = a.games_played;
+          bVal = b.games_played;
+          break;
+        case "player":
+          aVal = a.full_name.toLowerCase();
+          bVal = b.full_name.toLowerCase();
+          break;
+        case "team":
+          aVal = a.team_name.toLowerCase();
+          bVal = b.team_name.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return leaders;
+  }, [leadersData.leaders, sortBy, sortOrder]);
+
+  // Handle column sort
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortOrder("desc");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -152,34 +219,104 @@ export default function StatsLeadersPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Rank
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Player
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort("player")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Player
+                      {sortBy === "player" && (
+                        <span className="text-blue-600">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Team
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort("team")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Team
+                      {sortBy === "team" && (
+                        <span className="text-blue-600">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Conference
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    GP
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort("games_played")}
+                  >
+                    <div className="flex items-center gap-1">
+                      GP
+                      {sortBy === "games_played" && (
+                        <span className="text-blue-600">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {leadersData.stat_label}
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort("stat_value")}
+                  >
+                    <div className="flex items-center gap-1">
+                      {leadersData.stat_label}
+                      {sortBy === "stat_value" && (
+                        <span className="text-blue-600">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    PPG
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort("ppg")}
+                  >
+                    <div className="flex items-center gap-1">
+                      PPG
+                      {sortBy === "ppg" && (
+                        <span className="text-blue-600">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    RPG
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort("rpg")}
+                  >
+                    <div className="flex items-center gap-1">
+                      RPG
+                      {sortBy === "rpg" && (
+                        <span className="text-blue-600">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    APG
+                  <th
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+                    onClick={() => handleSort("apg")}
+                  >
+                    <div className="flex items-center gap-1">
+                      APG
+                      {sortBy === "apg" && (
+                        <span className="text-blue-600">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {leadersData.leaders.map((player, index) => (
+                {sortedLeaders.map((player, index) => (
                   <tr key={player.athlete_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-lg font-bold text-gray-900">
