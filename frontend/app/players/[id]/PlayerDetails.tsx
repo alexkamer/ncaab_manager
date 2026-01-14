@@ -82,7 +82,9 @@ function calculateSeasonStats(gameStats: GameStat[], filterFn?: (game: GameStat)
     total3PA += game.three_point_attempted || 0;
     totalFTM += game.free_throws_made || 0;
     totalFTA += game.free_throws_attempted || 0;
-    totalReb += game.rebounds || 0;
+    // Total rebounds = offensive + defensive (don't trust the rebounds field)
+    const gameRebs = (game.offensive_rebounds || 0) + (game.defensive_rebounds || 0);
+    totalReb += gameRebs;
     totalOffReb += game.offensive_rebounds || 0;
     totalDefReb += game.defensive_rebounds || 0;
     totalAst += game.assists || 0;
@@ -170,8 +172,8 @@ export default function PlayerDetails({ player }: { player: Player }) {
           bVal = calculateGamePoints(b);
           break;
         case "rebounds":
-          aVal = a.rebounds || 0;
-          bVal = b.rebounds || 0;
+          aVal = (a.offensive_rebounds || 0) + (a.defensive_rebounds || 0);
+          bVal = (b.offensive_rebounds || 0) + (b.defensive_rebounds || 0);
           break;
         case "assists":
           aVal = a.assists || 0;
@@ -525,7 +527,7 @@ export default function PlayerDetails({ player }: { player: Player }) {
                 <div className="text-sm font-medium text-gray-600 mb-3">Rebounds Per Game</div>
                 <div className="space-y-2">
                   {[...sortedGames].sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime()).slice(0, 5).reverse().map((game, idx) => {
-                    const rebounds = game.rebounds || 0;
+                    const rebounds = (game.offensive_rebounds || 0) + (game.defensive_rebounds || 0);
                     const avgRebounds = parseFloat(stats.avgRebounds);
                     const isAbove = rebounds > avgRebounds;
                     const barWidth = Math.min((rebounds / (avgRebounds * 2)) * 100, 100);
@@ -731,7 +733,7 @@ export default function PlayerDetails({ player }: { player: Player }) {
                         {points}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                        {game.rebounds || 0}
+                        {(game.offensive_rebounds || 0) + (game.defensive_rebounds || 0)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
                         {game.assists || 0}
