@@ -66,13 +66,17 @@ async function getRankings() {
   }
 }
 
-function GameCard({ game }: { game: Game }) {
+function GameCard({ game, rankingMap }: { game: Game; rankingMap?: Map<number, number> }) {
   const gameDate = new Date(game.date);
   const now = new Date();
   const isLive = game.status.toLowerCase().includes("live") || game.status.toLowerCase().includes("in progress");
 
   const awayWon = game.is_completed && (game.away_score || 0) > (game.home_score || 0);
   const homeWon = game.is_completed && (game.home_score || 0) > (game.away_score || 0);
+
+  // Get rankings
+  const awayRank = rankingMap?.get(game.away_team_id);
+  const homeRank = rankingMap?.get(game.home_team_id);
 
   // Calculate relative time
   const getRelativeTime = () => {
@@ -108,9 +112,14 @@ function GameCard({ game }: { game: Game }) {
         <div className="space-y-3">
           {/* Away Team */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 flex-1">
+            <div className="flex items-center space-x-2 flex-1">
               {game.away_team_logo && (
                 <img src={game.away_team_logo} alt={game.away_team_name} className="w-8 h-8" />
+              )}
+              {awayRank && (
+                <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold bg-gray-900 text-white rounded">
+                  {awayRank}
+                </span>
               )}
               <span className={`font-medium ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
                 {game.away_team_name}
@@ -123,9 +132,14 @@ function GameCard({ game }: { game: Game }) {
 
           {/* Home Team */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 flex-1">
+            <div className="flex items-center space-x-2 flex-1">
               {game.home_team_logo && (
                 <img src={game.home_team_logo} alt={game.home_team_name} className="w-8 h-8" />
+              )}
+              {homeRank && (
+                <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold bg-gray-900 text-white rounded">
+                  {homeRank}
+                </span>
               )}
               <span className={`font-medium ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
                 {game.home_team_name}
@@ -301,7 +315,7 @@ export default async function Home() {
               </div>
               <div className="space-y-3">
                 {featuredGames.map((game: Game) => (
-                  <GameCard key={game.event_id} game={game} />
+                  <GameCard key={game.event_id} game={game} rankingMap={rankingMap} />
                 ))}
               </div>
             </div>
@@ -318,7 +332,7 @@ export default async function Home() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {completedGames.slice(0, 6).map((game: Game) => (
-                  <GameCard key={game.event_id} game={game} />
+                  <GameCard key={game.event_id} game={game} rankingMap={rankingMap} />
                 ))}
               </div>
             </div>
@@ -335,7 +349,7 @@ export default async function Home() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {upcomingGames.slice(0, 4).map((game: Game) => (
-                  <GameCard key={game.event_id} game={game} />
+                  <GameCard key={game.event_id} game={game} rankingMap={rankingMap} />
                 ))}
               </div>
             </div>
