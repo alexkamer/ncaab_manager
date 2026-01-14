@@ -52,36 +52,44 @@ export default function GamesPage() {
     async function fetchData() {
       setLoading(true);
       try {
-        let url = `${API_BASE}/api/games?season=2026&limit=200`;
-        if (selectedDate) {
-          url += `&date_from=${selectedDate}&date_to=${selectedDate}`;
-        }
-
         const [gamesRes, todayRes] = await Promise.all([
-          fetch(url, { cache: 'no-store' }),
+          fetch(`${API_BASE}/api/games?season=2026&limit=200${selectedDate ? `&date_from=${selectedDate}&date_to=${selectedDate}` : ''}`, { cache: 'no-store' }),
           fetch(`${API_BASE}/api/today`, { cache: 'no-store' })
         ]);
+
+        let todayDate = '';
+        if (todayRes.ok) {
+          const todayData = await todayRes.json();
+          todayDate = todayData.date;
+          setServerToday(todayDate);
+        } else {
+          todayDate = new Date().toISOString().split('T')[0];
+          setServerToday(todayDate);
+        }
+
+        // If no date parameter, redirect to today
+        if (!selectedDate && todayDate) {
+          router.replace(`/games?date=${todayDate}`);
+          return;
+        }
 
         if (gamesRes.ok) {
           const gamesData = await gamesRes.json();
           setGames(gamesData.games || []);
         }
-
-        if (todayRes.ok) {
-          const todayData = await todayRes.json();
-          setServerToday(todayData.date);
-        } else {
-          setServerToday(new Date().toISOString().split('T')[0]);
-        }
       } catch (error) {
         console.error("Failed to fetch data:", error);
-        setServerToday(new Date().toISOString().split('T')[0]);
+        const fallbackDate = new Date().toISOString().split('T')[0];
+        setServerToday(fallbackDate);
+        if (!selectedDate) {
+          router.replace(`/games?date=${fallbackDate}`);
+        }
       } finally {
         setLoading(false);
       }
     }
     fetchData();
-  }, [selectedDate]);
+  }, [selectedDate, router]);
 
   // Filter games
   const filteredGames = useMemo(() => {
