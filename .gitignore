@@ -62,3 +62,10 @@ temp/
 
 # Claude Code
 .claude/
+
+# Browser automation / testing artifacts
+.playwright-mcp/
+
+# Utility scripts (optional - could be committed if useful)
+test_score_update.py
+update_recent_scores.py
