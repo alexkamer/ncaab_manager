@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState, useEffect, useMemo } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -15,32 +18,157 @@ interface Player {
   team_logo: string;
 }
 
-async function getPlayers() {
-  try {
-    const res = await fetch(`${API_BASE}/api/players?season=2026&limit=200`, {
-      next: { revalidate: 3600 }
-    });
-    if (!res.ok) return { players: [] };
-    const data = await res.json();
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch players:", error);
-    return { players: [] };
-  }
-}
+export default function PlayersPage() {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [positionFilter, setPositionFilter] = useState("");
+  const [classFilter, setClassFilter] = useState("");
 
-export default async function PlayersPage() {
-  const playersData = await getPlayers();
-  const players = playersData.players as Player[];
+  useEffect(() => {
+    async function fetchPlayers() {
+      try {
+        const res = await fetch(`${API_BASE}/api/players?season=2026&limit=200`);
+        if (res.ok) {
+          const data = await res.json();
+          setPlayers(data.players || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch players:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPlayers();
+  }, []);
+
+  // Get unique positions and classes for filters
+  const positions = useMemo(() => {
+    const uniquePositions = new Set(players.map(p => p.position_name).filter(Boolean));
+    return Array.from(uniquePositions).sort();
+  }, [players]);
+
+  const classes = useMemo(() => {
+    const uniqueClasses = new Set(players.map(p => p.experience_display).filter(Boolean));
+    return Array.from(uniqueClasses).sort();
+  }, [players]);
+
+  // Filter players based on search and filters
+  const filteredPlayers = useMemo(() => {
+    return players.filter(player => {
+      // Search filter
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchesName = player.full_name?.toLowerCase().includes(search);
+        const matchesTeam = player.team_name?.toLowerCase().includes(search);
+        if (!matchesName && !matchesTeam) return false;
+      }
+
+      // Position filter
+      if (positionFilter && player.position_name !== positionFilter) {
+        return false;
+      }
+
+      // Class filter
+      if (classFilter && player.experience_display !== classFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [players, searchTerm, positionFilter, classFilter]);
 
   return (
     <div className="space-y-6">
       <div className="border-b border-gray-200 pb-6">
         <h1 className="text-3xl font-bold text-gray-900">NCAA Basketball Players</h1>
-        <p className="mt-2 text-gray-600">Browse player statistics and profiles</p>
+        <p className="mt-2 text-gray-600">Browse player statistics and profiles for the 2025-26 season</p>
       </div>
 
-      {players.length > 0 ? (
+      {/* Search and Filters */}
+      <div className="border border-gray-200 p-4 bg-white">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Search */}
+          <div>
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+              Search Players or Teams
+            </label>
+            <input
+              id="search"
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name or team..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Position Filter */}
+          <div>
+            <label htmlFor="position" className="block text-sm font-medium text-gray-700 mb-1">
+              Position
+            </label>
+            <select
+              id="position"
+              value={positionFilter}
+              onChange={(e) => setPositionFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Positions</option>
+              {positions.map(pos => (
+                <option key={pos} value={pos}>{pos}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Class Filter */}
+          <div>
+            <label htmlFor="class" className="block text-sm font-medium text-gray-700 mb-1">
+              Class
+            </label>
+            <select
+              id="class"
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Classes</option>
+              {classes.map(cls => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Results count and clear filters */}
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-sm text-gray-600">
+            Showing {filteredPlayers.length} of {players.length} players
+          </span>
+          {(searchTerm || positionFilter || classFilter) && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setPositionFilter("");
+                setClassFilter("");
+              }}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="border border-gray-200 p-8 text-center text-gray-500">
+          <p>Loading players...</p>
+        </div>
+      )}
+
+      {/* Players Table */}
+      {!loading && filteredPlayers.length > 0 ? (
         <div className="border border-gray-200">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -67,7 +195,7 @@ export default async function PlayersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {players.map((player) => (
+                {filteredPlayers.map((player) => (
                   <tr key={player.athlete_id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link
@@ -105,11 +233,21 @@ export default async function PlayersPage() {
             </table>
           </div>
         </div>
-      ) : (
+      ) : !loading && filteredPlayers.length === 0 ? (
         <div className="border border-gray-200 p-8 text-center text-gray-500">
-          <p>No players found. Make sure the API server is running.</p>
+          <p>No players found matching your filters.</p>
+          <button
+            onClick={() => {
+              setSearchTerm("");
+              setPositionFilter("");
+              setClassFilter("");
+            }}
+            className="mt-2 text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Clear filters
+          </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

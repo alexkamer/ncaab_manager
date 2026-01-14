@@ -450,44 +450,72 @@ async def get_games(
 
         # Get AP Poll rankings for all games efficiently
         if games:
-            # Collect all unique (season_id, week, team_id) combinations
-            ranking_keys = set()
+            # Collect all unique (season_id, team_id) combinations and weeks
+            team_ids = set()
+            season_ids = set()
             for game in games:
-                if game.get('week') and game.get('season_id'):
-                    ranking_keys.add((game['season_id'], game['week'], game['home_team_id']))
-                    ranking_keys.add((game['season_id'], game['week'], game['away_team_id']))
+                if game.get('season_id'):
+                    season_ids.add(game['season_id'])
+                    team_ids.add(game['home_team_id'])
+                    team_ids.add(game['away_team_id'])
 
-            # Fetch all rankings in one query
-            if ranking_keys:
-                # Build query with proper parameter placeholders
-                season_week_pairs = list(set((s, w) for s, w, _ in ranking_keys))
-                team_ids = list(set(t for _, _, t in ranking_keys))
+            # Fetch rankings - use most recent ranking for each team up to the game week
+            if team_ids and season_ids:
+                placeholders_t = ','.join(['?' for _ in team_ids])
+                placeholders_s = ','.join(['?' for _ in season_ids])
 
-                if season_week_pairs and team_ids:
-                    placeholders_sw = ','.join([f'({s},{w})' for s, w in season_week_pairs])
-                    placeholders_t = ','.join(['?' for _ in team_ids])
+                # Fetch all rankings for these teams and season
+                cursor.execute(f"""
+                    SELECT season_id, week_number, team_id, current_rank
+                    FROM weekly_rankings
+                    WHERE ranking_type_id = 1
+                    AND season_id IN ({placeholders_s})
+                    AND team_id IN ({placeholders_t})
+                    ORDER BY season_id, week_number, team_id
+                """, list(season_ids) + list(team_ids))
 
-                    cursor.execute(f"""
-                        SELECT season_id, week_number, team_id, current_rank
-                        FROM weekly_rankings
-                        WHERE ranking_type_id = 1
-                        AND (season_id, week_number) IN ({placeholders_sw})
-                        AND team_id IN ({placeholders_t})
-                    """, team_ids)
+                # Build lookup dictionary with fallback to most recent ranking
+                all_rankings = cursor.fetchall()
+                rankings_by_team = {}  # (season_id, team_id) -> {week: rank}
 
-                    # Build lookup dictionary
-                    rankings_lookup = {}
-                    for row in cursor.fetchall():
-                        key = (row[0], row[1], row[2])  # (season_id, week_number, team_id)
-                        rankings_lookup[key] = row[3]  # current_rank
+                for row in all_rankings:
+                    season_id, week_number, team_id, current_rank = row
+                    key = (season_id, team_id)
+                    if key not in rankings_by_team:
+                        rankings_by_team[key] = {}
+                    rankings_by_team[key][week_number] = current_rank
 
-                    # Add rankings to each game
-                    for game in games:
-                        if game.get('week') and game.get('season_id'):
-                            home_key = (game['season_id'], game['week'], game['home_team_id'])
-                            away_key = (game['season_id'], game['week'], game['away_team_id'])
-                            game['home_team_ap_rank'] = rankings_lookup.get(home_key)
-                            game['away_team_ap_rank'] = rankings_lookup.get(away_key)
+                # Add rankings to each game (use exact week or most recent available)
+                for game in games:
+                    if game.get('season_id'):
+                        season_id = game['season_id']
+                        game_week = game.get('week')
+
+                        # Home team ranking
+                        home_key = (season_id, game['home_team_id'])
+                        if home_key in rankings_by_team:
+                            weeks_dict = rankings_by_team[home_key]
+                            # Try exact week first, then fall back to most recent week <= game_week
+                            if game_week and game_week in weeks_dict:
+                                game['home_team_ap_rank'] = weeks_dict[game_week]
+                            else:
+                                # Find most recent ranking
+                                available_weeks = sorted([w for w in weeks_dict.keys() if not game_week or w <= game_week])
+                                if available_weeks:
+                                    game['home_team_ap_rank'] = weeks_dict[available_weeks[-1]]
+
+                        # Away team ranking
+                        away_key = (season_id, game['away_team_id'])
+                        if away_key in rankings_by_team:
+                            weeks_dict = rankings_by_team[away_key]
+                            # Try exact week first, then fall back to most recent week <= game_week
+                            if game_week and game_week in weeks_dict:
+                                game['away_team_ap_rank'] = weeks_dict[game_week]
+                            else:
+                                # Find most recent ranking
+                                available_weeks = sorted([w for w in weeks_dict.keys() if not game_week or w <= game_week])
+                                if available_weeks:
+                                    game['away_team_ap_rank'] = weeks_dict[available_weeks[-1]]
 
         # If no games found and we're filtering by a single date, try ESPN API
         if len(games) == 0 and date_from and date_from == date_to:
