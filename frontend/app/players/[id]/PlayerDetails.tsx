@@ -13,6 +13,7 @@ interface GameStat {
   is_active: boolean;
   is_starter: boolean;
   minutes_played: number | string;
+  points?: number;
   field_goals_made: number;
   field_goals_attempted: number;
   three_point_made: number;
@@ -67,9 +68,9 @@ function calculateSeasonStats(gameStats: GameStat[], filterFn?: (game: GameStat)
   let gamesStarted = 0;
 
   filteredGames.forEach(game => {
-    const points = (game.field_goals_made || 0) * 2
-                 + (game.three_point_made || 0) * 3
-                 + (game.free_throws_made || 0);
+    const points = game.points !== undefined && game.points !== null
+      ? game.points
+      : (game.field_goals_made || 0) * 2 + (game.three_point_made || 0) + (game.free_throws_made || 0);
     totalPoints += points;
     const minutes = typeof game.minutes_played === 'string'
       ? parseFloat(game.minutes_played) || 0
@@ -119,9 +120,13 @@ function calculateSeasonStats(gameStats: GameStat[], filterFn?: (game: GameStat)
 }
 
 function calculateGamePoints(game: GameStat) {
-  return (game.field_goals_made || 0) * 2
-       + (game.three_point_made || 0) * 3
-       + (game.free_throws_made || 0);
+  // Use the points field from API if available, otherwise calculate
+  // Note: field_goals_made includes both 2pt and 3pt makes
+  if (game.points !== undefined && game.points !== null) {
+    return game.points;
+  }
+  // Fallback calculation: FGM*2 + 3PM (since 3PM is already counted in FGM) + FTM
+  return (game.field_goals_made || 0) * 2 + (game.three_point_made || 0) + (game.free_throws_made || 0);
 }
 
 function formatHeight(heightInches: number) {
