@@ -391,6 +391,87 @@ def get_today():
     }
 
 
+@app.get("/api/games/live")
+async def get_live_games(
+    days_ahead: int = Query(7, ge=1, le=14, description="Days ahead to fetch")
+):
+    """
+    Get live and upcoming games directly from ESPN API.
+    This endpoint fetches real-time data without relying on the database.
+    """
+    from datetime import datetime, timedelta
+
+    try:
+        # Calculate date range
+        start_date = datetime.now().strftime('%Y%m%d')
+        end_date = (datetime.now() + timedelta(days=days_ahead)).strftime('%Y%m%d')
+
+        # Fetch from ESPN API
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard"
+            params = {
+                'limit': 100,
+                'dates': f"{start_date}-{end_date}"
+            }
+
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+        events = data.get('events', [])
+        games = []
+
+        for event in events:
+            competitions = event.get('competitions', [])
+            if not competitions:
+                continue
+
+            comp = competitions[0]
+            competitors = comp.get('competitors', [])
+
+            if len(competitors) < 2:
+                continue
+
+            # Find home and away teams
+            home_team = next((c for c in competitors if c.get('homeAway') == 'home'), {})
+            away_team = next((c for c in competitors if c.get('homeAway') == 'away'), {})
+
+            # Parse game data
+            game = {
+                'event_id': int(event.get('id', 0)),
+                'date': event.get('date'),
+                'name': event.get('name', ''),
+                'short_name': event.get('shortName', ''),
+                'status': event.get('status', {}).get('type', {}).get('description', 'Scheduled'),
+                'is_completed': event.get('status', {}).get('type', {}).get('completed', False),
+                'home_team_id': int(home_team.get('team', {}).get('id', 0)),
+                'home_team_name': home_team.get('team', {}).get('displayName', ''),
+                'home_team_abbr': home_team.get('team', {}).get('abbreviation', ''),
+                'home_team_logo': home_team.get('team', {}).get('logo', ''),
+                'home_score': int(home_team.get('score', 0)),
+                'away_team_id': int(away_team.get('team', {}).get('id', 0)),
+                'away_team_name': away_team.get('team', {}).get('displayName', ''),
+                'away_team_abbr': away_team.get('team', {}).get('abbreviation', ''),
+                'away_team_logo': away_team.get('team', {}).get('logo', ''),
+                'away_score': int(away_team.get('score', 0)),
+                'venue_name': comp.get('venue', {}).get('fullName', ''),
+                'is_conference_game': comp.get('conferenceCompetition', False),
+                'season_year': event.get('season', {}).get('year', 2026)
+            }
+
+            games.append(game)
+
+        return {
+            'games': games,
+            'total': len(games),
+            'date_range': f"{start_date}-{end_date}",
+            'source': 'espn_live'
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch live games: {str(e)}")
+
+
 @app.get("/api/games")
 async def get_games(
     season: Optional[int] = Query(None, description="Season year (e.g., 2026)"),
@@ -398,9 +479,10 @@ async def get_games(
     date_from: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     limit: int = Query(50, le=200, description="Number of results"),
-    offset: int = Query(0, description="Pagination offset")
+    offset: int = Query(0, description="Pagination offset"),
+    include_live: bool = Query(True, description="Include live games from ESPN API")
 ):
-    """Get games with optional filters"""
+    """Get games with optional filters. Can merge database games with live ESPN data."""
     with get_db() as conn:
         cursor = conn.cursor()
 

@@ -22,16 +22,32 @@ interface Game {
   season_year: number;
 }
 
-async function getRecentGames() {
+async function getLiveGames() {
   try {
-    const res = await fetch(`${API_BASE}/api/games?season=2026&limit=20`, {
-      next: { revalidate: 60 }
+    // Fetch live/upcoming games directly from ESPN via API
+    const res = await fetch(`${API_BASE}/api/games/live?days_ahead=7`, {
+      next: { revalidate: 60 } // Cache for 1 minute
     });
     if (!res.ok) return { games: [] };
     const data = await res.json();
     return data;
   } catch (error) {
-    console.error("Failed to fetch games:", error);
+    console.error("Failed to fetch live games:", error);
+    return { games: [] };
+  }
+}
+
+async function getRecentGames() {
+  try {
+    // Fetch completed games from database for "Recent Results"
+    const res = await fetch(`${API_BASE}/api/games?season=2026&limit=20`, {
+      next: { revalidate: 300 } // Cache for 5 minutes
+    });
+    if (!res.ok) return { games: [] };
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch recent games:", error);
     return { games: [] };
   }
 }
@@ -126,28 +142,32 @@ function GameCard({ game }: { game: Game }) {
 }
 
 export default async function Home() {
-  const [gamesData, rankingsData] = await Promise.all([
+  const [liveGamesData, recentGamesData, rankingsData] = await Promise.all([
+    getLiveGames(),
     getRecentGames(),
     getRankings()
   ]);
 
-  const allGames = gamesData.games || [];
+  const liveAndUpcomingGames = liveGamesData.games || [];
+  const recentGames = recentGamesData.games || [];
   const topRankings = rankingsData.rankings.slice(0, 25);
 
-  // Separate games by status
-  const liveGames = allGames.filter((g: Game) =>
+  // Separate live/upcoming games by status
+  const liveGames = liveAndUpcomingGames.filter((g: Game) =>
     !g.is_completed && ((g.away_score || 0) > 0 || (g.home_score || 0) > 0)
   );
-  const completedGames = allGames.filter((g: Game) => g.is_completed);
-  const upcomingGames = allGames.filter((g: Game) =>
+  const upcomingGames = liveAndUpcomingGames.filter((g: Game) =>
     !g.is_completed && (g.away_score || 0) === 0 && (g.home_score || 0) === 0
   );
+  const completedGames = recentGames.filter((g: Game) => g.is_completed);
 
   // Featured games: Live games first, then upcoming conference games
   const featuredGames = [
     ...liveGames.slice(0, 3),
     ...upcomingGames.filter((g: Game) => g.is_conference_game).slice(0, 3 - liveGames.length)
   ].slice(0, 3);
+
+  const allGames = [...liveAndUpcomingGames, ...recentGames];
 
   return (
     <div className="space-y-6">
