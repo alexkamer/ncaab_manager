@@ -402,26 +402,34 @@ async def get_live_games(
     from datetime import datetime, timedelta
 
     try:
-        # Calculate date range
-        start_date = datetime.now().strftime('%Y%m%d')
-        end_date = (datetime.now() + timedelta(days=days_ahead)).strftime('%Y%m%d')
+        all_events = []
 
-        # Fetch from ESPN API
+        # Fetch each day individually (ESPN API doesn't handle date ranges well)
         async with httpx.AsyncClient(timeout=30.0) as client:
-            url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard"
-            params = {
-                'limit': 100,
-                'dates': f"{start_date}-{end_date}"
-            }
+            for day_offset in range(days_ahead + 1):  # Include today (0) through days_ahead
+                date = (datetime.now() + timedelta(days=day_offset)).strftime('%Y%m%d')
 
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+                url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard"
+                params = {
+                    'limit': 100,
+                    'dates': date
+                }
 
-        events = data.get('events', [])
+                try:
+                    response = await client.get(url, params=params)
+                    response.raise_for_status()
+                    data = response.json()
+
+                    events = data.get('events', [])
+                    all_events.extend(events)
+                except httpx.HTTPStatusError as e:
+                    # Continue on 404 (no games that day)
+                    if e.response.status_code != 404:
+                        raise
+
         games = []
 
-        for event in events:
+        for event in all_events:
             competitions = event.get('competitions', [])
             if not competitions:
                 continue
@@ -461,10 +469,14 @@ async def get_live_games(
 
             games.append(game)
 
+        start_date = datetime.now().strftime('%Y%m%d')
+        end_date = (datetime.now() + timedelta(days=days_ahead)).strftime('%Y%m%d')
+
         return {
             'games': games,
             'total': len(games),
             'date_range': f"{start_date}-{end_date}",
+            'days_fetched': days_ahead + 1,
             'source': 'espn_live'
         }
 
