@@ -193,60 +193,115 @@ export default async function GameDetailPage({
       {/* Player Statistics */}
       {game.source === 'espn' && game.players ? (
         // ESPN format
-        game.players.map((teamData) => (
-          <div key={teamData.team.id} className="border border-gray-200">
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <img src={teamData.team.logo} alt={teamData.team.displayName} className="w-8 h-8" />
-                <h2 className="text-lg font-bold text-gray-900">{teamData.team.displayName}</h2>
+        game.players.map((teamData) => {
+          const allPlayers = teamData.statistics[0]?.athletes || [];
+          const starters = allPlayers.filter(p => p.starter);
+          const bench = allPlayers.filter(p => !p.starter);
+
+          return (
+            <div key={teamData.team.id} className="border border-gray-200">
+              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <img src={teamData.team.logo} alt={teamData.team.displayName} className="w-8 h-8" />
+                  <h2 className="text-lg font-bold text-gray-900">{teamData.team.displayName}</h2>
+                </div>
               </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100 border-b border-gray-200">
-                  <tr>
-                    <th className="text-left px-4 py-2 font-semibold text-gray-700">Player</th>
-                    {teamData.statistics[0]?.labels.map((label, idx) => (
-                      <th key={idx} className="text-center px-2 py-2 font-semibold text-gray-700">
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {teamData.statistics[0]?.athletes.map((player, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center space-x-2">
-                          {player.athlete?.headshot && (
-                            <img
-                              src={player.athlete.headshot.href}
-                              alt={player.athlete.displayName}
-                              className="w-8 h-8 rounded-full"
-                            />
-                          )}
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {player.athlete?.displayName}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {player.athlete?.position.abbreviation} • #{player.athlete?.jersey}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      {player.stats?.map((stat, statIdx) => (
-                        <td key={statIdx} className="text-center px-2 py-3 text-gray-700">
-                          {stat}
-                        </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-semibold text-gray-700">Player</th>
+                      {teamData.statistics[0]?.labels.map((label, idx) => (
+                        <th key={idx} className="text-center px-2 py-2 font-semibold text-gray-700">
+                          {label}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {/* Starters Section */}
+                    {starters.length > 0 && (
+                      <>
+                        <tr className="bg-gray-50">
+                          <td colSpan={teamData.statistics[0]?.labels.length + 1} className="px-4 py-2 text-xs font-semibold text-gray-600 uppercase">
+                            Starters
+                          </td>
+                        </tr>
+                        {starters.map((player, idx) => (
+                          <tr key={`starter-${idx}`} className="hover:bg-gray-50 border-t border-gray-200">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-2">
+                                {player.athlete?.headshot && (
+                                  <img
+                                    src={player.athlete.headshot.href}
+                                    alt={player.athlete.displayName}
+                                    className="w-8 h-8 rounded-full"
+                                  />
+                                )}
+                                <div>
+                                  <div className="font-medium text-gray-900">
+                                    {player.athlete?.displayName}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {player.athlete?.position.abbreviation} • #{player.athlete?.jersey}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            {player.stats?.map((stat, statIdx) => (
+                              <td key={statIdx} className="text-center px-2 py-3 text-gray-700">
+                                {stat}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Bench Section */}
+                    {bench.length > 0 && (
+                      <>
+                        <tr className="bg-gray-50">
+                          <td colSpan={teamData.statistics[0]?.labels.length + 1} className="px-4 py-2 text-xs font-semibold text-gray-600 uppercase">
+                            Bench
+                          </td>
+                        </tr>
+                        {bench.map((player, idx) => (
+                          <tr key={`bench-${idx}`} className="hover:bg-gray-50 border-t border-gray-200">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-2">
+                                {player.athlete?.headshot && (
+                                  <img
+                                    src={player.athlete.headshot.href}
+                                    alt={player.athlete.displayName}
+                                    className="w-8 h-8 rounded-full"
+                                  />
+                                )}
+                                <div>
+                                  <div className="font-medium text-gray-900">
+                                    {player.athlete?.displayName}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {player.athlete?.position.abbreviation} • #{player.athlete?.jersey}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            {player.stats?.map((stat, statIdx) => (
+                              <td key={statIdx} className="text-center px-2 py-3 text-gray-700">
+                                {stat}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       ) : game.player_stats && game.player_stats.length > 0 ? (
         // Database format - group by team_id
         <>
@@ -267,6 +322,10 @@ export default async function GameDetailPage({
               const isAwayTeam = teamStats.length > 0 && (teamStats[0] as any).team_id === teamIds[0];
               const teamName = isAwayTeam ? game.away_team_name : game.home_team_name;
               const teamLogo = isAwayTeam ? game.away_team_logo : game.home_team_logo;
+
+              // Separate starters from bench
+              const starters = teamStats.filter(p => p.starter);
+              const bench = teamStats.filter(p => !p.starter);
 
               return (
                 <div key={teamId} className="border border-gray-200">
@@ -293,33 +352,80 @@ export default async function GameDetailPage({
                         <th className="text-center px-2 py-2 font-semibold text-gray-700">BLK</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {teamStats.map((player) => (
-                        <tr key={player.athlete_id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-gray-900">
-                              {player.display_name || player.full_name}
-                            </div>
-                            <div className="text-xs text-gray-500">{player.position_name}</div>
-                          </td>
-                          <td className="text-center px-2 py-3">{player.minutes_played || 0}</td>
-                          <td className="text-center px-2 py-3 font-medium">{player.points || 0}</td>
-                          <td className="text-center px-2 py-3">
-                            {player.field_goals_made || 0}-{player.field_goals_attempted || 0}
-                          </td>
-                          <td className="text-center px-2 py-3">
-                            {player.three_point_made || 0}-{player.three_point_attempted || 0}
-                          </td>
-                          <td className="text-center px-2 py-3">
-                            {player.free_throws_made || 0}-{player.free_throws_attempted || 0}
-                          </td>
-                          <td className="text-center px-2 py-3">{player.rebounds || 0}</td>
-                          <td className="text-center px-2 py-3">{player.assists || 0}</td>
-                          <td className="text-center px-2 py-3">{player.turnovers || 0}</td>
-                          <td className="text-center px-2 py-3">{player.steals || 0}</td>
-                          <td className="text-center px-2 py-3">{player.blocks || 0}</td>
-                        </tr>
-                      ))}
+                    <tbody>
+                      {/* Starters Section */}
+                      {starters.length > 0 && (
+                        <>
+                          <tr className="bg-gray-50">
+                            <td colSpan={11} className="px-4 py-2 text-xs font-semibold text-gray-600 uppercase">
+                              Starters
+                            </td>
+                          </tr>
+                          {starters.map((player) => (
+                            <tr key={`starter-${player.athlete_id}`} className="hover:bg-gray-50 border-t border-gray-200">
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-gray-900">
+                                  {player.display_name || player.full_name}
+                                </div>
+                                <div className="text-xs text-gray-500">{player.position_name}</div>
+                              </td>
+                              <td className="text-center px-2 py-3">{player.minutes_played || 0}</td>
+                              <td className="text-center px-2 py-3 font-medium">{player.points || 0}</td>
+                              <td className="text-center px-2 py-3">
+                                {player.field_goals_made || 0}-{player.field_goals_attempted || 0}
+                              </td>
+                              <td className="text-center px-2 py-3">
+                                {player.three_point_made || 0}-{player.three_point_attempted || 0}
+                              </td>
+                              <td className="text-center px-2 py-3">
+                                {player.free_throws_made || 0}-{player.free_throws_attempted || 0}
+                              </td>
+                              <td className="text-center px-2 py-3">{player.rebounds || 0}</td>
+                              <td className="text-center px-2 py-3">{player.assists || 0}</td>
+                              <td className="text-center px-2 py-3">{player.turnovers || 0}</td>
+                              <td className="text-center px-2 py-3">{player.steals || 0}</td>
+                              <td className="text-center px-2 py-3">{player.blocks || 0}</td>
+                            </tr>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Bench Section */}
+                      {bench.length > 0 && (
+                        <>
+                          <tr className="bg-gray-50">
+                            <td colSpan={11} className="px-4 py-2 text-xs font-semibold text-gray-600 uppercase">
+                              Bench
+                            </td>
+                          </tr>
+                          {bench.map((player) => (
+                            <tr key={`bench-${player.athlete_id}`} className="hover:bg-gray-50 border-t border-gray-200">
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-gray-900">
+                                  {player.display_name || player.full_name}
+                                </div>
+                                <div className="text-xs text-gray-500">{player.position_name}</div>
+                              </td>
+                              <td className="text-center px-2 py-3">{player.minutes_played || 0}</td>
+                              <td className="text-center px-2 py-3 font-medium">{player.points || 0}</td>
+                              <td className="text-center px-2 py-3">
+                                {player.field_goals_made || 0}-{player.field_goals_attempted || 0}
+                              </td>
+                              <td className="text-center px-2 py-3">
+                                {player.three_point_made || 0}-{player.three_point_attempted || 0}
+                              </td>
+                              <td className="text-center px-2 py-3">
+                                {player.free_throws_made || 0}-{player.free_throws_attempted || 0}
+                              </td>
+                              <td className="text-center px-2 py-3">{player.rebounds || 0}</td>
+                              <td className="text-center px-2 py-3">{player.assists || 0}</td>
+                              <td className="text-center px-2 py-3">{player.turnovers || 0}</td>
+                              <td className="text-center px-2 py-3">{player.steals || 0}</td>
+                              <td className="text-center px-2 py-3">{player.blocks || 0}</td>
+                            </tr>
+                          ))}
+                        </>
+                      )}
                     </tbody>
                   </table>
                   </div>
