@@ -30,6 +30,7 @@ interface LeadersData {
   stat_label: string;
   season: number;
   min_games: number;
+  min_attempts: number | null;
 }
 
 const STAT_CATEGORIES = [
@@ -51,6 +52,7 @@ export default function StatsLeadersPage() {
     stat_label: "Points Per Game",
     season: 2026,
     min_games: 5,
+    min_attempts: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -71,6 +73,7 @@ export default function StatsLeadersPage() {
             stat_label: "",
             season: 2026,
             min_games: 5,
+            min_attempts: null,
           });
         }
       } catch (error) {
@@ -81,6 +84,7 @@ export default function StatsLeadersPage() {
           stat_label: "",
           season: 2026,
           min_games: 5,
+          min_attempts: null,
         });
       } finally {
         setLoading(false);
@@ -122,6 +126,7 @@ export default function StatsLeadersPage() {
         </div>
         <p className="mt-3 text-sm text-gray-500">
           Minimum {leadersData.min_games} games played
+          {leadersData.min_attempts && ` • ${leadersData.min_attempts}+ attempts`}
         </p>
       </div>
 

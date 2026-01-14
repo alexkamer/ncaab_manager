@@ -1195,22 +1195,26 @@ async def get_season_leaders(
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Map stat category to database columns and aggregation
+        # Map stat category to database columns, aggregation, and minimum thresholds
+        # Format: (sql_expression, alias, label, min_games_default, min_attempts_expression, min_attempts_value)
         stat_mapping = {
-            "points": ("AVG(ps.points)", "ppg", "Points Per Game"),
-            "rebounds": ("AVG(ps.rebounds)", "rpg", "Rebounds Per Game"),
-            "assists": ("AVG(ps.assists)", "apg", "Assists Per Game"),
-            "field_goal_pct": ("ROUND(SUM(ps.field_goals_made) * 100.0 / NULLIF(SUM(ps.field_goals_attempted), 0), 1)", "fg_pct", "Field Goal %"),
-            "three_point_pct": ("ROUND(SUM(ps.three_point_made) * 100.0 / NULLIF(SUM(ps.three_point_attempted), 0), 1)", "three_pt_pct", "Three Point %"),
-            "free_throw_pct": ("ROUND(SUM(ps.free_throws_made) * 100.0 / NULLIF(SUM(ps.free_throws_attempted), 0), 1)", "ft_pct", "Free Throw %"),
-            "steals": ("AVG(ps.steals)", "spg", "Steals Per Game"),
-            "blocks": ("AVG(ps.blocks)", "bpg", "Blocks Per Game"),
+            "points": ("AVG(ps.points)", "ppg", "Points Per Game", 5, None, None),
+            "rebounds": ("AVG(ps.rebounds)", "rpg", "Rebounds Per Game", 5, None, None),
+            "assists": ("AVG(ps.assists)", "apg", "Assists Per Game", 5, None, None),
+            "field_goal_pct": ("ROUND(SUM(ps.field_goals_made) * 100.0 / NULLIF(SUM(ps.field_goals_attempted), 0), 1)", "fg_pct", "Field Goal %", 5, "SUM(ps.field_goals_attempted)", 75),
+            "three_point_pct": ("ROUND(SUM(ps.three_point_made) * 100.0 / NULLIF(SUM(ps.three_point_attempted), 0), 1)", "three_pt_pct", "Three Point %", 5, "SUM(ps.three_point_attempted)", 40),
+            "free_throw_pct": ("ROUND(SUM(ps.free_throws_made) * 100.0 / NULLIF(SUM(ps.free_throws_attempted), 0), 1)", "ft_pct", "Free Throw %", 5, "SUM(ps.free_throws_attempted)", 30),
+            "steals": ("AVG(ps.steals)", "spg", "Steals Per Game", 5, None, None),
+            "blocks": ("AVG(ps.blocks)", "bpg", "Blocks Per Game", 5, None, None),
         }
 
         if stat_category not in stat_mapping:
             raise HTTPException(status_code=400, detail=f"Invalid stat category. Must be one of: {', '.join(stat_mapping.keys())}")
 
-        stat_expr, stat_alias, stat_label = stat_mapping[stat_category]
+        stat_expr, stat_alias, stat_label, default_min_games, min_attempts_expr, min_attempts_val = stat_mapping[stat_category]
+
+        # Use provided min_games or default for this stat category
+        effective_min_games = min_games if min_games != 5 else default_min_games
 
         # Build the query
         query = f"""
@@ -1245,14 +1249,23 @@ async def get_season_leaders(
             query += " AND g.group_id = ?"
             params.append(conference_id)
 
-        query += f"""
+        # Add GROUP BY and HAVING clauses
+        query += """
             GROUP BY ps.athlete_id
             HAVING games_played >= ?
+        """
+        params.append(effective_min_games)
+
+        # Add minimum attempts constraint for percentage stats
+        if min_attempts_expr and min_attempts_val:
+            query += f" AND {min_attempts_expr} >= ?"
+            params.append(min_attempts_val)
+
+        query += """
             ORDER BY stat_value DESC
             LIMIT ?
         """
-
-        params.extend([min_games, limit])
+        params.append(limit)
 
         cursor.execute(query, params)
         leaders = [dict_from_row(row) for row in cursor.fetchall()]
@@ -1262,7 +1275,8 @@ async def get_season_leaders(
             "stat_category": stat_category,
             "stat_label": stat_label,
             "season": season,
-            "min_games": min_games
+            "min_games": effective_min_games,
+            "min_attempts": min_attempts_val if min_attempts_expr else None
         }
 
 
