@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import DateCarousel from "./DateCarousel";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -18,67 +22,97 @@ interface Game {
   home_team_record?: string;
   home_team_rank?: number;
   home_team_ap_rank?: number;
+  home_team_id?: number;
   away_team_name: string;
   away_team_abbr: string;
   away_team_logo: string;
   away_team_record?: string;
   away_team_rank?: number;
   away_team_ap_rank?: number;
+  away_team_id?: number;
   venue_name: string;
   spread?: number;
   over_under?: number;
   favorite_abbr?: string;
 }
 
-async function getGames(date?: string) {
-  try {
-    let url = `${API_BASE}/api/games?season=2026&limit=200`;
-    if (date) {
-      url += `&date_from=${date}&date_to=${date}`;
+export default function GamesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const selectedDate = searchParams?.get('date') || undefined;
+
+  const [games, setGames] = useState<Game[]>([]);
+  const [serverToday, setServerToday] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [conferenceOnly, setConferenceOnly] = useState(false);
+  const [rankedOnly, setRankedOnly] = useState(false);
+  const [searchTeam, setSearchTeam] = useState('');
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        let url = `${API_BASE}/api/games?season=2026&limit=200`;
+        if (selectedDate) {
+          url += `&date_from=${selectedDate}&date_to=${selectedDate}`;
+        }
+
+        const [gamesRes, todayRes] = await Promise.all([
+          fetch(url, { cache: 'no-store' }),
+          fetch(`${API_BASE}/api/today`, { cache: 'no-store' })
+        ]);
+
+        if (gamesRes.ok) {
+          const gamesData = await gamesRes.json();
+          setGames(gamesData.games || []);
+        }
+
+        if (todayRes.ok) {
+          const todayData = await todayRes.json();
+          setServerToday(todayData.date);
+        } else {
+          setServerToday(new Date().toISOString().split('T')[0]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        setServerToday(new Date().toISOString().split('T')[0]);
+      } finally {
+        setLoading(false);
+      }
     }
+    fetchData();
+  }, [selectedDate]);
 
-    const res = await fetch(url, {
-      cache: 'no-store'
+  // Filter games
+  const filteredGames = useMemo(() => {
+    return games.filter(game => {
+      // Conference games only filter
+      if (conferenceOnly && !game.is_conference_game) {
+        return false;
+      }
+
+      // Ranked matchups only filter (both teams ranked in top 25)
+      if (rankedOnly) {
+        const awayRanked = game.away_team_ap_rank && game.away_team_ap_rank <= 25;
+        const homeRanked = game.home_team_ap_rank && game.home_team_ap_rank <= 25;
+        if (!awayRanked || !homeRanked) {
+          return false;
+        }
+      }
+
+      // Team search filter
+      if (searchTeam) {
+        const search = searchTeam.toLowerCase();
+        const matchesAway = game.away_team_name?.toLowerCase().includes(search);
+        const matchesHome = game.home_team_name?.toLowerCase().includes(search);
+        if (!matchesAway && !matchesHome) {
+          return false;
+        }
+      }
+
+      return true;
     });
-    if (!res.ok) return { games: [] };
-    const data = await res.json();
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch games:", error);
-    return { games: [] };
-  }
-}
-
-async function getServerToday() {
-  try {
-    const res = await fetch(`${API_BASE}/api/today`, {
-      cache: 'no-store',
-      next: { revalidate: 0 }
-    });
-    if (!res.ok) {
-      console.warn("Server date endpoint returned non-OK status, using client date");
-      return new Date().toISOString().split('T')[0];
-    }
-    const data = await res.json();
-    return data.date;
-  } catch (error) {
-    console.warn("Failed to fetch server date, using client date:", error);
-    return new Date().toISOString().split('T')[0];
-  }
-}
-
-export default async function GamesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ date?: string }>;
-}) {
-  const params = await searchParams;
-  const selectedDate = params.date;
-  const [gamesData, serverToday] = await Promise.all([
-    getGames(selectedDate),
-    getServerToday()
-  ]);
-  const games = gamesData.games as Game[];
+  }, [games, conferenceOnly, rankedOnly, searchTeam]);
 
   // Get the display date
   const displayDate = selectedDate
@@ -90,6 +124,23 @@ export default async function GamesPage({
       })
     : 'All Games';
 
+  // Quick filter handlers
+  const handleQuickFilter = (type: 'conference' | 'ranked' | 'reset') => {
+    if (type === 'conference') {
+      setConferenceOnly(true);
+      setRankedOnly(false);
+      setSearchTeam('');
+    } else if (type === 'ranked') {
+      setConferenceOnly(false);
+      setRankedOnly(true);
+      setSearchTeam('');
+    } else {
+      setConferenceOnly(false);
+      setRankedOnly(false);
+      setSearchTeam('');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="border-b border-gray-200 pb-6">
@@ -98,16 +149,92 @@ export default async function GamesPage({
 
       <DateCarousel selectedDate={selectedDate} serverToday={serverToday} />
 
+      {/* Filters */}
+      <div className="border border-gray-200 p-4 bg-white">
+        <div className="space-y-4">
+          {/* Quick Filter Buttons */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => handleQuickFilter('reset')}
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                !conferenceOnly && !rankedOnly && !searchTeam
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              All Games
+            </button>
+            <button
+              onClick={() => handleQuickFilter('conference')}
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                conferenceOnly
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Conference Games
+            </button>
+            <button
+              onClick={() => handleQuickFilter('ranked')}
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                rankedOnly
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Top 25 Matchups
+            </button>
+          </div>
+
+          {/* Search Team Filter */}
+          <div>
+            <label htmlFor="team-search" className="block text-sm font-medium text-gray-700 mb-1">
+              Search by Team
+            </label>
+            <input
+              id="team-search"
+              type="text"
+              value={searchTeam}
+              onChange={(e) => setSearchTeam(e.target.value)}
+              placeholder="Search for a team..."
+              className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Results count */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">
+              Showing {filteredGames.length} of {games.length} games
+            </span>
+            {(conferenceOnly || rankedOnly || searchTeam) && (
+              <button
+                onClick={() => handleQuickFilter('reset')}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">{displayDate}</h2>
       </div>
 
-      {games && games.length > 0 ? (
+      {/* Loading State */}
+      {loading && (
+        <div className="border border-gray-200 p-8 text-center text-gray-500">
+          <p>Loading games...</p>
+        </div>
+      )}
+
+      {/* Games List */}
+      {!loading && filteredGames && filteredGames.length > 0 ? (
         <div className="space-y-4">
-          {games.map((game) => {
+          {filteredGames.map((game) => {
             const awayWon = game.is_completed && (game.away_score || 0) > (game.home_score || 0);
             const homeWon = game.is_completed && (game.home_score || 0) > (game.away_score || 0);
-            // Game is live if it has started (scores > 0) but isn't completed
             const hasStarted = !game.is_completed && ((game.away_score || 0) > 0 || (game.home_score || 0) > 0);
             const showScores = game.is_completed || hasStarted;
 
@@ -122,6 +249,9 @@ export default async function GamesPage({
                         <span className="text-gray-500">
                           {game.status_detail || 'SCHEDULED'}
                         </span>
+                      )}
+                      {game.is_conference_game && (
+                        <span className="ml-2 text-xs text-blue-600 font-medium">CONF</span>
                       )}
                     </div>
                     <div className="text-right">
@@ -220,11 +350,19 @@ export default async function GamesPage({
             );
           })}
         </div>
-      ) : (
+      ) : !loading && filteredGames.length === 0 ? (
         <div className="border border-gray-200 p-8 text-center text-gray-500">
-          <p>No games found for the selected date.</p>
+          <p>No games found matching your filters for the selected date.</p>
+          {(conferenceOnly || rankedOnly || searchTeam) && (
+            <button
+              onClick={() => handleQuickFilter('reset')}
+              className="mt-2 text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
