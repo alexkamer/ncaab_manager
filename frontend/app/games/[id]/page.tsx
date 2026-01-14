@@ -49,6 +49,24 @@ interface TeamPlayerStats {
   }>;
 }
 
+interface TeamStat {
+  name: string;
+  displayValue: string;
+  label: string;
+  abbreviation?: string;
+}
+
+interface TeamStats {
+  team: {
+    id: string;
+    displayName: string;
+    abbreviation: string;
+    logo: string;
+  };
+  statistics: TeamStat[];
+  homeAway: string;
+}
+
 interface GameDetail {
   event_id: number;
   date: string;
@@ -70,6 +88,7 @@ interface GameDetail {
   attendance?: number;
   player_stats?: PlayerStat[];
   players?: TeamPlayerStats[];
+  team_stats?: TeamStats[];
   source?: string;
 }
 
@@ -189,6 +208,68 @@ export default async function GameDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Team Statistics */}
+      {game.team_stats && game.team_stats.length === 2 && (
+        <div className="border border-gray-200">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900">Team Statistics</h2>
+          </div>
+          <div className="p-4">
+            {(() => {
+              const awayTeamStats = game.team_stats.find(t => t.homeAway === 'away');
+              const homeTeamStats = game.team_stats.find(t => t.homeAway === 'home');
+
+              if (!awayTeamStats || !homeTeamStats) return null;
+
+              // Key stats to display
+              const keyStatNames = [
+                'fieldGoalsMade-fieldGoalsAttempted',
+                'fieldGoalPct',
+                'threePointFieldGoalsMade-threePointFieldGoalsAttempted',
+                'threePointFieldGoalPct',
+                'freeThrowsMade-freeThrowsAttempted',
+                'freeThrowPct',
+                'totalRebounds',
+                'offensiveRebounds',
+                'defensiveRebounds',
+                'assists',
+                'steals',
+                'blocks',
+                'turnovers',
+                'fouls'
+              ];
+
+              return (
+                <div className="space-y-2">
+                  {keyStatNames.map((statName) => {
+                    const awayStat = awayTeamStats.statistics.find(s => s.name === statName);
+                    const homeStat = homeTeamStats.statistics.find(s => s.name === statName);
+
+                    if (!awayStat || !homeStat) return null;
+
+                    const label = awayStat.label || awayStat.abbreviation || statName;
+
+                    return (
+                      <div key={statName} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                        <div className="w-24 text-right font-medium text-gray-900">
+                          {awayStat.displayValue}
+                        </div>
+                        <div className="flex-1 text-center text-sm font-semibold text-gray-600 uppercase px-4">
+                          {label}
+                        </div>
+                        <div className="w-24 text-left font-medium text-gray-900">
+                          {homeStat.displayValue}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Player Statistics */}
       {game.source === 'espn' && game.players ? (
