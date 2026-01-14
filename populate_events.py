@@ -22,13 +22,29 @@ def parse_event_data(event_data: Dict, client=None) -> Optional[tuple]:
     try:
         event_id = int(event_data.get('id', 0))
 
-        # Season info
+        # Season info - dereference if it's a $ref
         season = event_data.get('season', {})
+        if '$ref' in season and client:
+            try:
+                season = client.get_from_ref(season['$ref'])
+            except:
+                return None  # Skip if we can't get season
         season_id = int(season.get('year', 0))
 
         # Season type
         season_type = season.get('type', {})
         season_type_id = int(season_type.get('type', 2))
+
+        # Week - extract from $ref URL if present
+        week = None
+        week_obj = event_data.get('week', {})
+        if '$ref' in week_obj:
+            # Extract week number from URL like .../weeks/10?lang=...
+            try:
+                week_url = week_obj['$ref']
+                week = int(week_url.split('/weeks/')[-1].split('?')[0])
+            except:
+                pass
 
         # Competitions array contains team and score info
         competitions = event_data.get('competitions', [])
@@ -48,12 +64,50 @@ def parse_event_data(event_data: Dict, client=None) -> Optional[tuple]:
         if not home_team or not away_team:
             return None
 
-        home_team_id = int(home_team.get('team', {}).get('id', 0))
-        away_team_id = int(away_team.get('team', {}).get('id', 0))
+        # Extract team IDs - team is a $ref, extract ID from URL
+        home_team_obj = home_team.get('team', {})
+        away_team_obj = away_team.get('team', {})
+
+        # Try to get ID directly, otherwise extract from $ref URL
+        if 'id' in home_team_obj:
+            home_team_id = int(home_team_obj['id'])
+        elif '$ref' in home_team_obj:
+            # Extract from URL like .../teams/150?lang=...
+            try:
+                home_team_id = int(home_team_obj['$ref'].split('/teams/')[-1].split('?')[0])
+            except:
+                home_team_id = 0
+        else:
+            home_team_id = 0
+
+        if 'id' in away_team_obj:
+            away_team_id = int(away_team_obj['id'])
+        elif '$ref' in away_team_obj:
+            try:
+                away_team_id = int(away_team_obj['$ref'].split('/teams/')[-1].split('?')[0])
+            except:
+                away_team_id = 0
+        else:
+            away_team_id = 0
 
         # Scores - handle both string/int and dict formats
         home_score = home_team.get('score')
         away_score = away_team.get('score')
+
+        # Dereference score if it's a $ref
+        if home_score and isinstance(home_score, dict) and '$ref' in home_score and client:
+            try:
+                score_data = client.get_from_ref(home_score['$ref'])
+                home_score = score_data.get('value')
+            except:
+                home_score = None
+
+        if away_score and isinstance(away_score, dict) and '$ref' in away_score and client:
+            try:
+                score_data = client.get_from_ref(away_score['$ref'])
+                away_score = score_data.get('value')
+            except:
+                away_score = None
 
         # Convert to int if present and not a dict
         if home_score and not isinstance(home_score, dict):
@@ -104,9 +158,10 @@ def parse_event_data(event_data: Dict, client=None) -> Optional[tuple]:
         status_detail = status_type.get('detail', '')
         is_completed = status_type.get('completed', False)
 
-        # ONLY process completed games
-        if not is_completed:
-            return None
+        # Allow all games (completed, in-progress, and scheduled)
+        # Scores will be None for non-completed games
+        # if not is_completed:
+        #     return None
 
         # Game flags
         is_conference_game = competition.get('conferenceCompetition', False)
@@ -129,7 +184,7 @@ def parse_event_data(event_data: Dict, client=None) -> Optional[tuple]:
         api_ref = event_data.get('$ref', '')
 
         return (
-            event_id, season_id, season_type_id,
+            event_id, season_id, season_type_id, week,
             home_team_id, away_team_id,
             date, venue_id, venue_name,
             status_name, status_detail, is_completed,
@@ -182,11 +237,11 @@ def populate_events_by_date(db: Database, client: ESPNAPIClient,
         db.executemany(
             """
             INSERT OR REPLACE INTO events
-            (event_id, season_id, season_type_id, home_team_id, away_team_id,
+            (event_id, season_id, season_type_id, week, home_team_id, away_team_id,
              date, venue_id, venue_name, status, status_detail, is_completed,
              home_score, away_score, winner_team_id,
              is_conference_game, is_neutral_site, attendance, broadcast_network, api_ref)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             events_data
         )
@@ -249,11 +304,11 @@ def populate_events_for_team(db: Database, client: ESPNAPIClient, year: int, tea
         db.executemany(
             """
             INSERT OR REPLACE INTO events
-            (event_id, season_id, season_type_id, home_team_id, away_team_id,
+            (event_id, season_id, season_type_id, week, home_team_id, away_team_id,
              date, venue_id, venue_name, status, status_detail, is_completed,
              home_score, away_score, winner_team_id,
              is_conference_game, is_neutral_site, attendance, broadcast_network, api_ref)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             events_data
         )
