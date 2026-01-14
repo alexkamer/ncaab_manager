@@ -304,6 +304,8 @@ CREATE TABLE events (
     home_score INTEGER,
     away_score INTEGER,
     winner_team_id INTEGER,
+    home_line_scores TEXT,  -- JSON array of period scores
+    away_line_scores TEXT,  -- JSON array of period scores
 
     -- Game Type
     is_conference_game BOOLEAN DEFAULT FALSE,
