@@ -136,7 +136,7 @@ def fetch_and_parse_events(client: ESPNAPIClient, start_date: str, end_date: str
 
             if parsed:
                 # Only include COMPLETED games
-                is_completed = parsed[20]  # is_completed field
+                is_completed = parsed[11]  # is_completed field
                 if is_completed:
                     events.append(parsed)
         except Exception as e:
@@ -156,12 +156,11 @@ def upsert_events(db: ThreadSafeDatabase, events: List[tuple]):
 
     query = """
         INSERT OR REPLACE INTO events (
-            event_id, uid, date, name, short_name, season_id, season_type_id,
-            home_team_id, away_team_id, venue_id, attendance, capacity,
-            home_score, away_score, winner_team_id, broadcast_market, broadcast_names,
-            neutral_site, conference_competition, recent_form, box_score_available,
-            is_completed, api_ref, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            event_id, season_id, season_type_id, week, home_team_id, away_team_id,
+            date, venue_id, venue_name, status, status_detail, is_completed,
+            home_score, away_score, winner_team_id,
+            is_conference_game, is_neutral_site, attendance, broadcast_network, api_ref
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     db.executemany(query, events)
