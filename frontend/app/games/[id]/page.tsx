@@ -484,10 +484,10 @@ export default async function GameDetailPage({
 
             return teamIds.map((teamId) => {
               const teamStats = playersByTeam[Number(teamId)];
-              // Determine team name based on team_id (first player's team)
-              const isAwayTeam = teamStats.length > 0 && (teamStats[0] as any).team_id === teamIds[0];
-              const teamName = isAwayTeam ? game.away_team_name : game.home_team_name;
-              const teamLogo = isAwayTeam ? game.away_team_logo : game.home_team_logo;
+              // Determine team name based on team_id by comparing with home/away team IDs
+              const isHomeTeam = Number(teamId) === game.home_team_id;
+              const teamName = isHomeTeam ? game.home_team_name : game.away_team_name;
+              const teamLogo = isHomeTeam ? game.home_team_logo : game.away_team_logo;
 
               // Separate starters from bench
               const starters = teamStats.filter(p => (p as any).is_starter === 1);
