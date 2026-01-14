@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import PlayerHeadshot from "./PlayerHeadshot";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -183,8 +184,12 @@ export default function StatsLeadersPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link
                         href={`/players/${player.athlete_id}`}
-                        className="flex items-center space-x-3"
+                        className="flex items-center space-x-3 group"
                       >
+                        <PlayerHeadshot
+                          athleteId={player.athlete_id}
+                          fullName={player.full_name}
+                        />
                         <div>
                           <div className="text-sm font-medium text-blue-600 hover:text-blue-800">
                             {player.full_name}
