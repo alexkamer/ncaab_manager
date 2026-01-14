@@ -76,12 +76,15 @@ interface GameDetail {
   home_team_color?: string;
   home_score: number;
   home_team_ap_rank?: number;
+  home_team_id?: number;
+  home_line_scores?: string[];
   away_team_name: string;
   away_team_abbr: string;
   away_team_logo: string;
   away_team_color?: string;
   away_score: number;
   away_team_ap_rank?: number;
+  away_line_scores?: string[];
   status: string;
   status_detail?: string;
   venue_name: string;
@@ -208,6 +211,81 @@ export default async function GameDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Line Score */}
+      {(game.home_line_scores && game.home_line_scores.length > 0 &&
+        game.away_line_scores && game.away_line_scores.length > 0) && (
+        <div className="border border-gray-200">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900">Scoring by Period</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-700">Team</th>
+                  {game.home_line_scores.map((_, idx) => (
+                    <th key={idx} className="text-center px-4 py-3 font-semibold text-gray-700">
+                      {idx === 0 ? '1st' : idx === 1 ? '2nd' : `OT${idx - 1}`}
+                    </th>
+                  ))}
+                  <th className="text-center px-6 py-3 font-semibold text-gray-700 bg-gray-200">T</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Away Team */}
+                <tr className="border-t border-gray-200 hover:bg-gray-50">
+                  <td className="px-6 py-3">
+                    <div className="flex items-center space-x-3">
+                      {awayTeamLogo && (
+                        <img src={awayTeamLogo} alt={game.away_team_name} className="w-6 h-6" />
+                      )}
+                      <span className={`font-medium ${awayWon ? 'text-gray-900' : 'text-gray-600'}`}>
+                        {game.away_team_ap_rank && game.away_team_ap_rank <= 25 && (
+                          <span className="font-bold mr-1">#{game.away_team_ap_rank}</span>
+                        )}
+                        {game.away_team_name}
+                      </span>
+                    </div>
+                  </td>
+                  {game.away_line_scores.map((score, idx) => (
+                    <td key={idx} className="text-center px-4 py-3 font-medium text-gray-700">
+                      {score}
+                    </td>
+                  ))}
+                  <td className={`text-center px-6 py-3 font-bold text-lg bg-gray-100 ${awayWon ? 'text-gray-900' : 'text-gray-600'}`}>
+                    {game.away_score}
+                  </td>
+                </tr>
+                {/* Home Team */}
+                <tr className="border-t border-gray-200 hover:bg-gray-50">
+                  <td className="px-6 py-3">
+                    <div className="flex items-center space-x-3">
+                      {homeTeamLogo && (
+                        <img src={homeTeamLogo} alt={game.home_team_name} className="w-6 h-6" />
+                      )}
+                      <span className={`font-medium ${homeWon ? 'text-gray-900' : 'text-gray-600'}`}>
+                        {game.home_team_ap_rank && game.home_team_ap_rank <= 25 && (
+                          <span className="font-bold mr-1">#{game.home_team_ap_rank}</span>
+                        )}
+                        {game.home_team_name}
+                      </span>
+                    </div>
+                  </td>
+                  {game.home_line_scores.map((score, idx) => (
+                    <td key={idx} className="text-center px-4 py-3 font-medium text-gray-700">
+                      {score}
+                    </td>
+                  ))}
+                  <td className={`text-center px-6 py-3 font-bold text-lg bg-gray-100 ${homeWon ? 'text-gray-900' : 'text-gray-600'}`}>
+                    {game.home_score}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Betting Information */}
       {!game.is_completed && (game.spread !== null && game.spread !== undefined || game.over_under) && (
