@@ -1219,7 +1219,6 @@ async def get_season_leaders(
                 a.full_name,
                 a.display_name,
                 a.position_name,
-                a.headshot_url,
                 t.team_id,
                 t.display_name as team_name,
                 t.abbreviation as team_abbr,

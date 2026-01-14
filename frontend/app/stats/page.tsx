@@ -10,7 +10,6 @@ interface Leader {
   full_name: string;
   display_name: string;
   position_name: string;
-  headshot_url: string;
   team_id: number;
   team_name: string;
   team_abbr: string;
@@ -186,13 +185,6 @@ export default function StatsLeadersPage() {
                         href={`/players/${player.athlete_id}`}
                         className="flex items-center space-x-3"
                       >
-                        {player.headshot_url && (
-                          <img
-                            src={player.headshot_url}
-                            alt={player.full_name}
-                            className="w-10 h-10 rounded-full"
-                          />
-                        )}
                         <div>
                           <div className="text-sm font-medium text-blue-600 hover:text-blue-800">
                             {player.full_name}
