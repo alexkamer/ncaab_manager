@@ -217,55 +217,96 @@ export default async function GameDetailPage({
           </div>
           <div className="p-4">
             {(() => {
-              const awayTeamStats = game.team_stats.find(t => t.homeAway === 'away');
-              const homeTeamStats = game.team_stats.find(t => t.homeAway === 'home');
+              const awayTeamStats = game.team_stats.find((t: any) => t.homeAway === 'away' || t.home_away === 'away');
+              const homeTeamStats = game.team_stats.find((t: any) => t.homeAway === 'home' || t.home_away === 'home');
 
               if (!awayTeamStats || !homeTeamStats) return null;
 
-              // Key stats to display
-              const keyStatNames = [
-                'fieldGoalsMade-fieldGoalsAttempted',
-                'fieldGoalPct',
-                'threePointFieldGoalsMade-threePointFieldGoalsAttempted',
-                'threePointFieldGoalPct',
-                'freeThrowsMade-freeThrowsAttempted',
-                'freeThrowPct',
-                'totalRebounds',
-                'offensiveRebounds',
-                'defensiveRebounds',
-                'assists',
-                'steals',
-                'blocks',
-                'turnovers',
-                'fouls'
-              ];
+              // Check if it's ESPN format (has statistics array) or database format (flat fields)
+              const isESPNFormat = awayTeamStats.statistics !== undefined;
 
-              return (
-                <div className="space-y-2">
-                  {keyStatNames.map((statName) => {
-                    const awayStat = awayTeamStats.statistics.find(s => s.name === statName);
-                    const homeStat = homeTeamStats.statistics.find(s => s.name === statName);
+              if (isESPNFormat) {
+                // ESPN format - existing code
+                const keyStatNames = [
+                  'fieldGoalsMade-fieldGoalsAttempted',
+                  'fieldGoalPct',
+                  'threePointFieldGoalsMade-threePointFieldGoalsAttempted',
+                  'threePointFieldGoalPct',
+                  'freeThrowsMade-freeThrowsAttempted',
+                  'freeThrowPct',
+                  'totalRebounds',
+                  'offensiveRebounds',
+                  'defensiveRebounds',
+                  'assists',
+                  'steals',
+                  'blocks',
+                  'turnovers',
+                  'fouls'
+                ];
 
-                    if (!awayStat || !homeStat) return null;
+                return (
+                  <div className="space-y-2">
+                    {keyStatNames.map((statName) => {
+                      const awayStat = awayTeamStats.statistics.find((s: any) => s.name === statName);
+                      const homeStat = homeTeamStats.statistics.find((s: any) => s.name === statName);
 
-                    const label = awayStat.label || awayStat.abbreviation || statName;
+                      if (!awayStat || !homeStat) return null;
 
-                    return (
-                      <div key={statName} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                      const label = awayStat.label || awayStat.abbreviation || statName;
+
+                      return (
+                        <div key={statName} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                          <div className="w-24 text-right font-medium text-gray-900">
+                            {awayStat.displayValue}
+                          </div>
+                          <div className="flex-1 text-center text-sm font-semibold text-gray-600 uppercase px-4">
+                            {label}
+                          </div>
+                          <div className="w-24 text-left font-medium text-gray-900">
+                            {homeStat.displayValue}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              } else {
+                // Database format - transform to display
+                const stats = [
+                  { key: 'fg', label: 'Field Goals', awayValue: `${awayTeamStats.field_goals_made}-${awayTeamStats.field_goals_attempted}`, homeValue: `${homeTeamStats.field_goals_made}-${homeTeamStats.field_goals_attempted}` },
+                  { key: 'fg_pct', label: 'FG%', awayValue: `${awayTeamStats.field_goal_pct}%`, homeValue: `${homeTeamStats.field_goal_pct}%` },
+                  { key: '3pt', label: '3-Pointers', awayValue: `${awayTeamStats.three_point_made}-${awayTeamStats.three_point_attempted}`, homeValue: `${homeTeamStats.three_point_made}-${homeTeamStats.three_point_attempted}` },
+                  { key: '3pt_pct', label: '3P%', awayValue: `${awayTeamStats.three_point_pct}%`, homeValue: `${homeTeamStats.three_point_pct}%` },
+                  { key: 'ft', label: 'Free Throws', awayValue: `${awayTeamStats.free_throws_made}-${awayTeamStats.free_throws_attempted}`, homeValue: `${homeTeamStats.free_throws_made}-${homeTeamStats.free_throws_attempted}` },
+                  { key: 'ft_pct', label: 'FT%', awayValue: `${awayTeamStats.free_throw_pct}%`, homeValue: `${homeTeamStats.free_throw_pct}%` },
+                  { key: 'reb', label: 'Total Rebounds', awayValue: awayTeamStats.total_rebounds, homeValue: homeTeamStats.total_rebounds },
+                  { key: 'oreb', label: 'Offensive Rebounds', awayValue: awayTeamStats.offensive_rebounds, homeValue: homeTeamStats.offensive_rebounds },
+                  { key: 'dreb', label: 'Defensive Rebounds', awayValue: awayTeamStats.defensive_rebounds, homeValue: homeTeamStats.defensive_rebounds },
+                  { key: 'ast', label: 'Assists', awayValue: awayTeamStats.assists, homeValue: homeTeamStats.assists },
+                  { key: 'stl', label: 'Steals', awayValue: awayTeamStats.steals, homeValue: homeTeamStats.steals },
+                  { key: 'blk', label: 'Blocks', awayValue: awayTeamStats.blocks, homeValue: homeTeamStats.blocks },
+                  { key: 'to', label: 'Turnovers', awayValue: awayTeamStats.turnovers, homeValue: homeTeamStats.turnovers },
+                  { key: 'fouls', label: 'Fouls', awayValue: awayTeamStats.fouls, homeValue: homeTeamStats.fouls },
+                ];
+
+                return (
+                  <div className="space-y-2">
+                    {stats.map((stat) => (
+                      <div key={stat.key} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                         <div className="w-24 text-right font-medium text-gray-900">
-                          {awayStat.displayValue}
+                          {stat.awayValue}
                         </div>
                         <div className="flex-1 text-center text-sm font-semibold text-gray-600 uppercase px-4">
-                          {label}
+                          {stat.label}
                         </div>
                         <div className="w-24 text-left font-medium text-gray-900">
-                          {homeStat.displayValue}
+                          {stat.homeValue}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              );
+                    ))}
+                  </div>
+                );
+              }
             })()}
           </div>
         </div>
@@ -411,8 +452,8 @@ export default async function GameDetailPage({
               const teamLogo = isAwayTeam ? game.away_team_logo : game.home_team_logo;
 
               // Separate starters from bench
-              const starters = teamStats.filter(p => p.starter);
-              const bench = teamStats.filter(p => !p.starter);
+              const starters = teamStats.filter(p => (p as any).is_starter === 1);
+              const bench = teamStats.filter(p => (p as any).is_starter === 0 || !(p as any).is_starter);
 
               return (
                 <div key={teamId} className="border border-gray-200">
