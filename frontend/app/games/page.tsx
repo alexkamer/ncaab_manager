@@ -52,13 +52,17 @@ async function getGames(date?: string) {
 async function getServerToday() {
   try {
     const res = await fetch(`${API_BASE}/api/today`, {
-      cache: 'no-store'
+      cache: 'no-store',
+      next: { revalidate: 0 }
     });
-    if (!res.ok) return new Date().toISOString().split('T')[0];
+    if (!res.ok) {
+      console.warn("Server date endpoint returned non-OK status, using client date");
+      return new Date().toISOString().split('T')[0];
+    }
     const data = await res.json();
     return data.date;
   } catch (error) {
-    console.error("Failed to fetch server date:", error);
+    console.warn("Failed to fetch server date, using client date:", error);
     return new Date().toISOString().split('T')[0];
   }
 }
