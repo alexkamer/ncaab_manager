@@ -124,12 +124,12 @@ def fetch_and_parse_events(client: ESPNAPIClient, start_date: str, end_date: str
 
     events_data = client.get_events(dates=f"{start_date}-{end_date}")
 
-    if not events_data or 'items' not in events_data:
+    if not events_data:
         print("No events found in date range")
         return []
 
     events = []
-    for event_ref in tqdm(events_data['items'], desc="Parsing events"):
+    for event_ref in tqdm(events_data, desc="Parsing events"):
         try:
             event_data = client.get_from_ref(event_ref['$ref'])
             parsed = parse_event_data(event_data, client=client)
