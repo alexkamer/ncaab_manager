@@ -132,7 +132,7 @@ export default async function Home() {
   ]);
 
   const allGames = gamesData.games || [];
-  const topRankings = rankingsData.rankings.slice(0, 10);
+  const topRankings = rankingsData.rankings.slice(0, 25);
 
   // Separate games by status
   const liveGames = allGames.filter((g: Game) =>
@@ -243,12 +243,12 @@ export default async function Home() {
 
         {/* Sidebar - 1 column */}
         <div className="space-y-6">
-          {/* AP Top 10 */}
+          {/* AP Top 25 */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900">AP Top 10</h2>
+              <h2 className="text-lg font-bold text-gray-900">AP Top 25</h2>
               <Link href="/rankings" className="text-sm font-medium text-blue-600 hover:text-blue-800">
-                Full Poll →
+                View All →
               </Link>
             </div>
             <div className="border border-gray-200 divide-y divide-gray-200">
