@@ -111,6 +111,22 @@ export default async function GameDetailPage({
   const awayWon = game.away_score > game.home_score;
   const homeWon = game.home_score > game.away_score;
 
+  // If logos are missing from game object, try to get them from players array (ESPN source)
+  let homeTeamLogo = game.home_team_logo;
+  let awayTeamLogo = game.away_team_logo;
+
+  if (game.source === 'espn' && game.players) {
+    // Find team logos from players array
+    game.players.forEach((teamData) => {
+      if (teamData.team.abbreviation === game.home_team_abbr && !homeTeamLogo) {
+        homeTeamLogo = teamData.team.logo;
+      }
+      if (teamData.team.abbreviation === game.away_team_abbr && !awayTeamLogo) {
+        awayTeamLogo = teamData.team.logo;
+      }
+    });
+  }
+
   return (
     <div className="space-y-6">
       <Link href="/games" className="text-blue-600 hover:underline">
@@ -123,17 +139,22 @@ export default async function GameDetailPage({
           <div className="text-sm font-semibold text-gray-500 uppercase mb-2">
             {game.status_detail || game.status}
           </div>
-          <div className="text-sm text-gray-500">
-            {game.venue_name}
-            {game.attendance && ` • ${game.attendance.toLocaleString()} attendance`}
-          </div>
+          {(game.venue_name || game.attendance) && (
+            <div className="text-sm text-gray-500">
+              {game.venue_name}
+              {game.venue_name && game.attendance && ' • '}
+              {game.attendance && `${game.attendance.toLocaleString()} attendance`}
+            </div>
+          )}
         </div>
 
         {/* Score Display */}
         <div className="flex items-center justify-center space-x-8">
           {/* Away Team */}
           <div className="flex items-center space-x-4">
-            <img src={game.away_team_logo} alt={game.away_team_name} className="w-16 h-16" />
+            {awayTeamLogo && (
+              <img src={awayTeamLogo} alt={game.away_team_name} className="w-16 h-16" />
+            )}
             <div className="text-right">
               <div className={`text-lg font-semibold ${awayWon ? 'text-gray-900' : 'text-gray-600'}`}>
                 {game.away_team_ap_rank && game.away_team_ap_rank <= 25 && (
@@ -162,7 +183,9 @@ export default async function GameDetailPage({
                 {game.home_score}
               </div>
             </div>
-            <img src={game.home_team_logo} alt={game.home_team_name} className="w-16 h-16" />
+            {homeTeamLogo && (
+              <img src={homeTeamLogo} alt={game.home_team_name} className="w-16 h-16" />
+            )}
           </div>
         </div>
       </div>
