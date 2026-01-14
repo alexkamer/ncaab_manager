@@ -242,26 +242,34 @@ export default function GamesPage() {
               <div key={game.event_id} className="border border-gray-200">
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="text-xs font-semibold text-gray-900 uppercase">
-                      {hasStarted && <span className="text-red-600">LIVE</span>}
-                      {game.is_completed && <span>FINAL</span>}
-                      {!game.is_completed && !hasStarted && (
-                        <span className="text-gray-500">
-                          {game.status_detail || 'SCHEDULED'}
-                        </span>
-                      )}
-                      {game.is_conference_game && (
-                        <span className="ml-2 text-xs text-blue-600 font-medium">CONF</span>
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs font-semibold text-gray-900 uppercase">
+                        {hasStarted && <span className="text-red-600">LIVE</span>}
+                        {game.is_completed && <span>FINAL</span>}
+                        {!game.is_completed && !hasStarted && (
+                          <span className="text-gray-500">
+                            {game.status_detail || 'SCHEDULED'}
+                          </span>
+                        )}
+                        {game.is_conference_game && (
+                          <span className="ml-2 text-xs text-blue-600 font-medium">CONF</span>
+                        )}
+                      </div>
+                      {/* Prominent Spread Badge */}
+                      {(game.spread !== null && game.spread !== undefined) && !game.is_completed && (
+                        <div className="px-2 py-1 bg-green-100 border border-green-300 rounded text-xs font-bold text-green-800">
+                          {game.favorite_abbr} {game.spread > 0 ? '+' : ''}{game.spread}
+                        </div>
                       )}
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-gray-500">
                         {game.venue_name}
                       </div>
-                      {(game.spread !== null && game.spread !== undefined) && (
-                        <div className="text-xs text-gray-600 mt-1">
-                          <span className="font-medium">{game.favorite_abbr} {game.spread > 0 ? '+' : ''}{game.spread}</span>
-                          {game.over_under && <span className="ml-2">O/U {game.over_under}</span>}
+                      {/* Enhanced O/U Display */}
+                      {game.over_under && !game.is_completed && (
+                        <div className="text-sm font-semibold text-gray-700 mt-1">
+                          O/U {game.over_under}
                         </div>
                       )}
                     </div>

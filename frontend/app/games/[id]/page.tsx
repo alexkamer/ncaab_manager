@@ -209,6 +209,44 @@ export default async function GameDetailPage({
         </div>
       </div>
 
+      {/* Betting Information */}
+      {!game.is_completed && (game.spread !== null && game.spread !== undefined || game.over_under) && (
+        <div className="border border-gray-200">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900">Betting Information</h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Spread */}
+              {(game.spread !== null && game.spread !== undefined) && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-sm font-medium text-gray-600 mb-2">Point Spread</div>
+                  <div className="text-3xl font-bold text-green-800">
+                    {game.favorite_abbr} {game.spread > 0 ? '+' : ''}{game.spread}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {game.favorite_abbr} favored by {Math.abs(game.spread)} points
+                  </div>
+                </div>
+              )}
+
+              {/* Over/Under */}
+              {game.over_under && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-sm font-medium text-gray-600 mb-2">Over/Under</div>
+                  <div className="text-3xl font-bold text-blue-800">
+                    {game.over_under}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    Total points over/under
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Team Statistics */}
       {game.team_stats && game.team_stats.length === 2 && (
         <div className="border border-gray-200">
