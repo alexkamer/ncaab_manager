@@ -152,6 +152,9 @@ export default async function Home() {
   const recentGames = recentGamesData.games || [];
   const topRankings = rankingsData.rankings.slice(0, 25);
 
+  // Create ranking lookup map
+  const rankingMap = new Map(topRankings.map((r: any) => [r.team_id, r.current_rank]));
+
   // Separate live/upcoming games by status
   const liveGames = liveAndUpcomingGames.filter((g: Game) =>
     !g.is_completed && ((g.away_score || 0) > 0 || (g.home_score || 0) > 0)
@@ -161,11 +164,95 @@ export default async function Home() {
   );
   const completedGames = recentGames.filter((g: Game) => g.is_completed);
 
-  // Featured games: Live games first, then upcoming conference games
-  const featuredGames = [
-    ...liveGames.slice(0, 3),
-    ...upcomingGames.filter((g: Game) => g.is_conference_game).slice(0, 3 - liveGames.length)
-  ].slice(0, 3);
+  // Featured games selection algorithm
+  const calculateGameScore = (game: Game, isLive: boolean) => {
+    let score = 0;
+
+    // Get rankings
+    const homeRank = rankingMap.get(game.home_team_id);
+    const awayRank = rankingMap.get(game.away_team_id);
+
+    // Ranking score (granular based on actual ranks)
+    if (homeRank && awayRank) {
+      // Both ranked - big bonus, higher for better matchups
+      const avgRank = (homeRank + awayRank) / 2;
+      score += 200 - avgRank * 5; // Top matchups get ~200pts, #25 vs #25 gets ~75pts
+
+      // Extra bonus for top 10 matchups
+      if (homeRank <= 10 && awayRank <= 10) {
+        score += 100;
+      }
+    } else if (homeRank || awayRank) {
+      // One ranked team
+      const rank = homeRank || awayRank || 26;
+      score += 50 - rank; // #1 team gets 49pts, #25 gets 25pts
+    }
+
+    // Conference game bonus
+    if (game.is_conference_game) {
+      score += 30;
+    }
+
+    // Live game handling
+    if (isLive) {
+      score += 40; // Base live bonus
+
+      // Close game bonus (within 5 points)
+      const scoreDiff = Math.abs((game.home_score || 0) - (game.away_score || 0));
+      if (scoreDiff <= 5) {
+        score += 20; // Small boost for close games
+      }
+    } else {
+      // Upcoming game - boost if starting soon
+      const gameDate = new Date(game.date);
+      const now = new Date();
+      const hoursUntil = (gameDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      if (hoursUntil <= 3 && hoursUntil >= 0) {
+        score += 15; // Small boost for games starting within 3 hours
+      }
+    }
+
+    return score;
+  };
+
+  // Score all games
+  const scoredLiveGames = liveGames.map(g => ({ game: g, score: calculateGameScore(g, true), isLive: true }));
+  const scoredUpcomingGames = upcomingGames.map(g => ({ game: g, score: calculateGameScore(g, false), isLive: false }));
+
+  // Sort by score
+  scoredLiveGames.sort((a, b) => b.score - a.score);
+  scoredUpcomingGames.sort((a, b) => b.score - a.score);
+
+  // Quality threshold - only "quality" games have score > 50
+  const qualityLiveGames = scoredLiveGames.filter(g => g.score > 50);
+  const nonQualityLiveGames = scoredLiveGames.filter(g => g.score <= 50);
+
+  // Build featured list: all quality live games + at least 1 non-quality live (if exists)
+  let featured = [
+    ...qualityLiveGames,
+    ...(nonQualityLiveGames.length > 0 && qualityLiveGames.length === 0 ? [nonQualityLiveGames[0]] : [])
+  ];
+
+  // Add upcoming games to fill
+  featured = [...featured, ...scoredUpcomingGames];
+
+  // Determine count based on quality + volume
+  const qualityCount = scoredLiveGames.filter(g => g.score > 80).length +
+                       scoredUpcomingGames.filter(g => g.score > 80).length;
+  const totalGames = liveAndUpcomingGames.length;
+
+  let targetCount = 3; // Minimum
+  if (qualityCount >= 5 && totalGames > 30) {
+    targetCount = 6; // Very busy day with quality games
+  } else if (qualityCount >= 3 || totalGames > 25) {
+    targetCount = 5; // Busy day
+  } else if (qualityCount >= 2 || totalGames > 15) {
+    targetCount = 4; // Moderate day
+  }
+
+  // Take top N games
+  const featuredGames = featured.slice(0, targetCount).map(f => f.game);
 
   const allGames = [...liveAndUpcomingGames, ...recentGames];
 
