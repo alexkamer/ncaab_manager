@@ -581,6 +581,18 @@ async def get_game_detail(event_id: int):
         game_dict = dict_from_row(game)
         game_dict['source'] = 'database'
 
+        # Parse line scores from JSON if they exist
+        if game_dict.get('home_line_scores'):
+            try:
+                game_dict['home_line_scores'] = json.loads(game_dict['home_line_scores'])
+            except:
+                game_dict['home_line_scores'] = None
+        if game_dict.get('away_line_scores'):
+            try:
+                game_dict['away_line_scores'] = json.loads(game_dict['away_line_scores'])
+            except:
+                game_dict['away_line_scores'] = None
+
         # Get AP Poll rankings for the week of this game
         if game_dict.get('week') and game_dict.get('season_id'):
             cursor.execute("""

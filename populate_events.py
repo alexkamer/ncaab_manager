@@ -94,6 +94,13 @@ def parse_event_data(event_data: Dict, client=None) -> Optional[tuple]:
         home_score = home_team.get('score')
         away_score = away_team.get('score')
 
+        # Line scores (period scores)
+        import json
+        home_line_scores = home_team.get('linescores', [])
+        away_line_scores = away_team.get('linescores', [])
+        home_line_scores_json = json.dumps([ls.get('displayValue', '0') for ls in home_line_scores]) if home_line_scores else None
+        away_line_scores_json = json.dumps([ls.get('displayValue', '0') for ls in away_line_scores]) if away_line_scores else None
+
         # Dereference score if it's a $ref
         if home_score and isinstance(home_score, dict) and '$ref' in home_score and client:
             try:
@@ -191,7 +198,8 @@ def parse_event_data(event_data: Dict, client=None) -> Optional[tuple]:
             home_score, away_score, winner_team_id,
             is_conference_game, is_neutral_site,
             attendance, broadcast_network,
-            api_ref
+            api_ref,
+            home_line_scores_json, away_line_scores_json
         )
 
     except Exception as e:
@@ -240,8 +248,9 @@ def populate_events_by_date(db: Database, client: ESPNAPIClient,
             (event_id, season_id, season_type_id, week, home_team_id, away_team_id,
              date, venue_id, venue_name, status, status_detail, is_completed,
              home_score, away_score, winner_team_id,
-             is_conference_game, is_neutral_site, attendance, broadcast_network, api_ref)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             is_conference_game, is_neutral_site, attendance, broadcast_network, api_ref,
+             home_line_scores, away_line_scores)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             events_data
         )
@@ -307,8 +316,9 @@ def populate_events_for_team(db: Database, client: ESPNAPIClient, year: int, tea
             (event_id, season_id, season_type_id, week, home_team_id, away_team_id,
              date, venue_id, venue_name, status, status_detail, is_completed,
              home_score, away_score, winner_team_id,
-             is_conference_game, is_neutral_site, attendance, broadcast_network, api_ref)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             is_conference_game, is_neutral_site, attendance, broadcast_network, api_ref,
+             home_line_scores, away_line_scores)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             events_data
         )
