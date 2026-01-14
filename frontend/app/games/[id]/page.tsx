@@ -488,7 +488,7 @@ export default async function GameDetailPage({
             // Check format
             const isESPNFormat = awayStats.statistics !== undefined;
 
-            let awayFgPct, homeFgPct, away3PtPct, home3PtPct, awayTurnovers, homeTurnovers;
+            let awayTurnovers, homeTurnovers;
             let awayFastBreak, homeFastBreak, awayPaint, homePaint, awayBench, homeBench;
             let awayLargestLead, homeLargestLead;
 
@@ -498,10 +498,6 @@ export default async function GameDetailPage({
                 return stats.find((s: any) => s.name === name)?.displayValue || '0';
               };
 
-              awayFgPct = getStatValue(awayStats.statistics, 'fieldGoalPct');
-              homeFgPct = getStatValue(homeStats.statistics, 'fieldGoalPct');
-              away3PtPct = getStatValue(awayStats.statistics, 'threePointFieldGoalPct');
-              home3PtPct = getStatValue(homeStats.statistics, 'threePointFieldGoalPct');
               awayTurnovers = getStatValue(awayStats.statistics, 'turnovers');
               homeTurnovers = getStatValue(homeStats.statistics, 'turnovers');
               awayFastBreak = getStatValue(awayStats.statistics, 'fastBreakPoints');
@@ -514,10 +510,6 @@ export default async function GameDetailPage({
               homeLargestLead = getStatValue(homeStats.statistics, 'largestLead');
             } else {
               // Database format
-              awayFgPct = awayStats.field_goal_pct ? `${(awayStats.field_goal_pct * 100).toFixed(1)}%` : '0%';
-              homeFgPct = homeStats.field_goal_pct ? `${(homeStats.field_goal_pct * 100).toFixed(1)}%` : '0%';
-              away3PtPct = awayStats.three_point_pct ? `${(awayStats.three_point_pct * 100).toFixed(1)}%` : '0%';
-              home3PtPct = homeStats.three_point_pct ? `${(homeStats.three_point_pct * 100).toFixed(1)}%` : '0%';
               awayTurnovers = awayStats.total_turnovers || awayStats.turnovers || 0;
               homeTurnovers = homeStats.total_turnovers || homeStats.turnovers || 0;
               awayFastBreak = awayStats.fast_break_points || 0;
@@ -536,32 +528,7 @@ export default async function GameDetailPage({
                   <h2 className="text-lg font-bold text-gray-900">Game Summary</h2>
                 </div>
                 <div className="p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {/* Shooting Efficiency */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">FG%</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-blue-800">{awayFgPct}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-blue-800">{homeFgPct}</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">3PT%</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-purple-800">{away3PtPct}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-purple-800">{home3PtPct}</span>
-                      </div>
-                    </div>
-
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {/* Turnovers */}
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Turnovers</div>
