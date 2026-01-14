@@ -1181,6 +1181,92 @@ def get_standings(
         }
 
 
+@app.get("/api/stats/leaders")
+async def get_season_leaders(
+    season: int = Query(2026, description="Season year"),
+    stat_category: str = Query("points", description="Stat category: points, rebounds, assists, field_goal_pct, three_point_pct, free_throw_pct, steals, blocks"),
+    limit: int = Query(50, ge=1, le=100, description="Number of leaders to return"),
+    min_games: int = Query(5, ge=1, le=50, description="Minimum games played"),
+    conference_id: Optional[int] = Query(None, description="Filter by conference ID")
+):
+    """
+    Get season leaders in various statistical categories
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Map stat category to database columns and aggregation
+        stat_mapping = {
+            "points": ("AVG(ps.points)", "ppg", "Points Per Game"),
+            "rebounds": ("AVG(ps.rebounds)", "rpg", "Rebounds Per Game"),
+            "assists": ("AVG(ps.assists)", "apg", "Assists Per Game"),
+            "field_goal_pct": ("ROUND(SUM(ps.field_goals_made) * 100.0 / NULLIF(SUM(ps.field_goals_attempted), 0), 1)", "fg_pct", "Field Goal %"),
+            "three_point_pct": ("ROUND(SUM(ps.three_point_made) * 100.0 / NULLIF(SUM(ps.three_point_attempted), 0), 1)", "three_pt_pct", "Three Point %"),
+            "free_throw_pct": ("ROUND(SUM(ps.free_throws_made) * 100.0 / NULLIF(SUM(ps.free_throws_attempted), 0), 1)", "ft_pct", "Free Throw %"),
+            "steals": ("AVG(ps.steals)", "spg", "Steals Per Game"),
+            "blocks": ("AVG(ps.blocks)", "bpg", "Blocks Per Game"),
+        }
+
+        if stat_category not in stat_mapping:
+            raise HTTPException(status_code=400, detail=f"Invalid stat category. Must be one of: {', '.join(stat_mapping.keys())}")
+
+        stat_expr, stat_alias, stat_label = stat_mapping[stat_category]
+
+        # Build the query
+        query = f"""
+            SELECT
+                a.athlete_id,
+                a.full_name,
+                a.display_name,
+                a.position_name,
+                a.headshot_url,
+                t.team_id,
+                t.display_name as team_name,
+                t.abbreviation as team_abbr,
+                t.logo_url as team_logo,
+                st.group_id as conference_id,
+                g.name as conference_name,
+                COUNT(DISTINCT ps.event_id) as games_played,
+                {stat_expr} as stat_value,
+                ROUND(AVG(ps.points), 1) as ppg,
+                ROUND(AVG(ps.rebounds), 1) as rpg,
+                ROUND(AVG(ps.assists), 1) as apg
+            FROM player_statistics ps
+            JOIN athletes a ON ps.athlete_id = a.athlete_id
+            JOIN teams t ON ps.team_id = t.team_id
+            LEFT JOIN standings st ON t.team_id = st.team_id AND st.season_id = ?
+            LEFT JOIN groups g ON st.group_id = g.group_id
+            JOIN events e ON ps.event_id = e.event_id
+            WHERE e.season_id = ? AND e.is_completed = 1
+        """
+
+        params = [season, season]
+
+        if conference_id:
+            query += " AND g.group_id = ?"
+            params.append(conference_id)
+
+        query += f"""
+            GROUP BY ps.athlete_id
+            HAVING games_played >= ?
+            ORDER BY stat_value DESC
+            LIMIT ?
+        """
+
+        params.extend([min_games, limit])
+
+        cursor.execute(query, params)
+        leaders = [dict_from_row(row) for row in cursor.fetchall()]
+
+        return {
+            "leaders": leaders,
+            "stat_category": stat_category,
+            "stat_label": stat_label,
+            "season": season,
+            "min_games": min_games
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
