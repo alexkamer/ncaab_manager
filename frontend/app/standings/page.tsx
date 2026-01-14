@@ -222,10 +222,10 @@ export default async function StandingsPage() {
                           })()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
-                          {team.vs_ap_top25_wins || team.vs_ap_top25_losses ? `${team.vs_ap_top25_wins}-${team.vs_ap_top25_losses}` : '-'}
+                          {team.vs_ap_top25_wins || team.vs_ap_top25_losses ? `${team.vs_ap_top25_wins}-${team.vs_ap_top25_losses}` : '0-0'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-900">
-                          {team.vs_usa_top25_wins || team.vs_usa_top25_losses ? `${team.vs_usa_top25_wins}-${team.vs_usa_top25_losses}` : '-'}
+                          {team.vs_usa_top25_wins || team.vs_usa_top25_losses ? `${team.vs_usa_top25_wins}-${team.vs_usa_top25_losses}` : '0-0'}
                         </td>
                       </tr>
                     ))}
