@@ -242,7 +242,8 @@ async def fetch_games_from_espn(date: str) -> List[Dict[str, Any]]:
     try:
         # Convert YYYY-MM-DD to YYYYMMDD format for ESPN API
         date_formatted = date.replace('-', '')
-        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_formatted}&limit=200"
+        # groups=50 filters for Division I games only
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date_formatted}&limit=200&groups=50"
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url, timeout=10.0)
@@ -391,6 +392,10 @@ async def get_games(
                 e.is_completed,
                 e.is_conference_game,
                 e.venue_name,
+                e.home_team_id,
+                e.away_team_id,
+                e.season_id,
+                e.week,
                 ht.display_name as home_team_name,
                 ht.abbreviation as home_team_abbr,
                 ht.logo_url as home_team_logo,
@@ -411,11 +416,14 @@ async def get_games(
             params.extend([team_id, team_id])
 
         if date_from:
-            query += " AND DATE(e.date) >= ?"
+            # Convert UTC date to CST (UTC-6) for filtering
+            # DATE(datetime(e.date, '-6 hours')) converts UTC timestamp to CST date
+            query += " AND DATE(datetime(e.date, '-6 hours')) >= ?"
             params.append(date_from)
 
         if date_to:
-            query += " AND DATE(e.date) <= ?"
+            # Convert UTC date to CST (UTC-6) for filtering
+            query += " AND DATE(datetime(e.date, '-6 hours')) <= ?"
             params.append(date_to)
 
         query += " ORDER BY e.date DESC LIMIT ? OFFSET ?"
@@ -423,6 +431,47 @@ async def get_games(
 
         cursor.execute(query, params)
         games = [dict_from_row(row) for row in cursor.fetchall()]
+
+        # Get AP Poll rankings for all games efficiently
+        if games:
+            # Collect all unique (season_id, week, team_id) combinations
+            ranking_keys = set()
+            for game in games:
+                if game.get('week') and game.get('season_id'):
+                    ranking_keys.add((game['season_id'], game['week'], game['home_team_id']))
+                    ranking_keys.add((game['season_id'], game['week'], game['away_team_id']))
+
+            # Fetch all rankings in one query
+            if ranking_keys:
+                # Build query with proper parameter placeholders
+                season_week_pairs = list(set((s, w) for s, w, _ in ranking_keys))
+                team_ids = list(set(t for _, _, t in ranking_keys))
+
+                if season_week_pairs and team_ids:
+                    placeholders_sw = ','.join([f'({s},{w})' for s, w in season_week_pairs])
+                    placeholders_t = ','.join(['?' for _ in team_ids])
+
+                    cursor.execute(f"""
+                        SELECT season_id, week_number, team_id, current_rank
+                        FROM weekly_rankings
+                        WHERE ranking_type_id = 1
+                        AND (season_id, week_number) IN ({placeholders_sw})
+                        AND team_id IN ({placeholders_t})
+                    """, team_ids)
+
+                    # Build lookup dictionary
+                    rankings_lookup = {}
+                    for row in cursor.fetchall():
+                        key = (row[0], row[1], row[2])  # (season_id, week_number, team_id)
+                        rankings_lookup[key] = row[3]  # current_rank
+
+                    # Add rankings to each game
+                    for game in games:
+                        if game.get('week') and game.get('season_id'):
+                            home_key = (game['season_id'], game['week'], game['home_team_id'])
+                            away_key = (game['season_id'], game['week'], game['away_team_id'])
+                            game['home_team_ap_rank'] = rankings_lookup.get(home_key)
+                            game['away_team_ap_rank'] = rankings_lookup.get(away_key)
 
         # If no games found and we're filtering by a single date, try ESPN API
         if len(games) == 0 and date_from and date_from == date_to:
@@ -481,6 +530,20 @@ async def get_game_detail(event_id: int):
 
         game_dict = dict_from_row(game)
         game_dict['source'] = 'database'
+
+        # Get AP Poll rankings for the week of this game
+        if game_dict.get('week') and game_dict.get('season_id'):
+            cursor.execute("""
+                SELECT team_id, current_rank
+                FROM weekly_rankings
+                WHERE season_id = ? AND week_number = ? AND ranking_type_id = 1
+                AND team_id IN (?, ?)
+            """, (game_dict['season_id'], game_dict['week'],
+                  game_dict['home_team_id'], game_dict['away_team_id']))
+
+            rankings = {row[0]: row[1] for row in cursor.fetchall()}
+            game_dict['home_team_ap_rank'] = rankings.get(game_dict['home_team_id'])
+            game_dict['away_team_ap_rank'] = rankings.get(game_dict['away_team_id'])
 
         # Get team statistics
         cursor.execute("""
@@ -902,8 +965,10 @@ def get_player_detail(athlete_id: int, season: int = Query(2026)):
                 aseason.jersey,
                 aseason.experience_display,
                 aseason.experience_years,
+                t.team_id,
                 t.display_name as team_name,
-                t.logo_url as team_logo
+                t.logo_url as team_logo,
+                t.color as team_color
             FROM athletes a
             JOIN athlete_seasons aseason ON a.athlete_id = aseason.athlete_id
             JOIN seasons s ON aseason.season_id = s.season_id
@@ -921,8 +986,12 @@ def get_player_detail(athlete_id: int, season: int = Query(2026)):
         cursor.execute("""
             SELECT
                 ps.*,
-                e.date,
-                e.name as game_name,
+                e.date as event_date,
+                e.home_team_id = ps.team_id as is_home,
+                CASE
+                    WHEN e.home_team_id = ps.team_id THEN e.away_team_id
+                    ELSE e.home_team_id
+                END as opponent_id,
                 t.display_name as opponent_name
             FROM player_statistics ps
             JOIN events e ON ps.event_id = e.event_id

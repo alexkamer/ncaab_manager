@@ -57,11 +57,13 @@ interface GameDetail {
   home_team_logo: string;
   home_team_color?: string;
   home_score: number;
+  home_team_ap_rank?: number;
   away_team_name: string;
   away_team_abbr: string;
   away_team_logo: string;
   away_team_color?: string;
   away_score: number;
+  away_team_ap_rank?: number;
   status: string;
   status_detail?: string;
   venue_name: string;
@@ -134,6 +136,9 @@ export default async function GameDetailPage({
             <img src={game.away_team_logo} alt={game.away_team_name} className="w-16 h-16" />
             <div className="text-right">
               <div className={`text-lg font-semibold ${awayWon ? 'text-gray-900' : 'text-gray-600'}`}>
+                {game.away_team_ap_rank && game.away_team_ap_rank <= 25 && (
+                  <span className="font-bold mr-2">#{game.away_team_ap_rank}</span>
+                )}
                 {game.away_team_name}
               </div>
               <div className={`text-4xl font-bold ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
@@ -148,6 +153,9 @@ export default async function GameDetailPage({
           <div className="flex items-center space-x-4">
             <div className="text-left">
               <div className={`text-lg font-semibold ${homeWon ? 'text-gray-900' : 'text-gray-600'}`}>
+                {game.home_team_ap_rank && game.home_team_ap_rank <= 25 && (
+                  <span className="font-bold mr-2">#{game.home_team_ap_rank}</span>
+                )}
                 {game.home_team_name}
               </div>
               <div className={`text-4xl font-bold ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
