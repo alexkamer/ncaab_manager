@@ -113,19 +113,17 @@ function GameCard({ game, rankingMap }: { game: Game; rankingMap?: Map<number, n
           {/* Away Team */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 flex-1 min-w-0">
-              {awayRank && (
-                <div className="flex-shrink-0 relative">
-                  <div className="absolute -top-1 -left-1 bg-gradient-to-br from-yellow-400 to-yellow-600 text-gray-900 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
-                    {awayRank}
-                  </div>
-                </div>
-              )}
               {game.away_team_logo && (
-                <img src={game.away_team_logo} alt={game.away_team_name} className="w-10 h-10 flex-shrink-0" />
+                <img src={game.away_team_logo} alt={game.away_team_name} className="w-8 h-8 flex-shrink-0" />
               )}
-              <span className={`font-medium truncate ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
-                {game.away_team_name}
-              </span>
+              <div className="flex items-baseline gap-1.5 min-w-0">
+                {awayRank && (
+                  <span className="text-sm font-bold text-gray-400 flex-shrink-0">#{awayRank}</span>
+                )}
+                <span className={`font-medium truncate ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
+                  {game.away_team_name}
+                </span>
+              </div>
             </div>
             <span className={`text-2xl font-bold flex-shrink-0 ml-2 ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
               {game.away_score || 0}
@@ -135,19 +133,17 @@ function GameCard({ game, rankingMap }: { game: Game; rankingMap?: Map<number, n
           {/* Home Team */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 flex-1 min-w-0">
-              {homeRank && (
-                <div className="flex-shrink-0 relative">
-                  <div className="absolute -top-1 -left-1 bg-gradient-to-br from-yellow-400 to-yellow-600 text-gray-900 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
-                    {homeRank}
-                  </div>
-                </div>
-              )}
               {game.home_team_logo && (
-                <img src={game.home_team_logo} alt={game.home_team_name} className="w-10 h-10 flex-shrink-0" />
+                <img src={game.home_team_logo} alt={game.home_team_name} className="w-8 h-8 flex-shrink-0" />
               )}
-              <span className={`font-medium truncate ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
-                {game.home_team_name}
-              </span>
+              <div className="flex items-baseline gap-1.5 min-w-0">
+                {homeRank && (
+                  <span className="text-sm font-bold text-gray-400 flex-shrink-0">#{homeRank}</span>
+                )}
+                <span className={`font-medium truncate ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
+                  {game.home_team_name}
+                </span>
+              </div>
             </div>
             <span className={`text-2xl font-bold flex-shrink-0 ml-2 ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
               {game.home_score || 0}
