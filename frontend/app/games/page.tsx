@@ -17,11 +17,13 @@ interface Game {
   home_team_logo: string;
   home_team_record?: string;
   home_team_rank?: number;
+  home_team_ap_rank?: number;
   away_team_name: string;
   away_team_abbr: string;
   away_team_logo: string;
   away_team_record?: string;
   away_team_rank?: number;
+  away_team_ap_rank?: number;
   venue_name: string;
   spread?: number;
   over_under?: number;
@@ -101,16 +103,18 @@ export default async function GamesPage({
           {games.map((game) => {
             const awayWon = game.is_completed && (game.away_score || 0) > (game.home_score || 0);
             const homeWon = game.is_completed && (game.home_score || 0) > (game.away_score || 0);
-            const isLive = game.status?.toLowerCase().includes("live") || game.status?.toLowerCase().includes("in progress");
+            // Game is live if it has started (scores > 0) but isn't completed
+            const hasStarted = !game.is_completed && ((game.away_score || 0) > 0 || (game.home_score || 0) > 0);
+            const showScores = game.is_completed || hasStarted;
 
             return (
               <div key={game.event_id} className="border border-gray-200">
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-xs font-semibold text-gray-900 uppercase">
-                      {isLive && <span className="text-red-600">LIVE</span>}
+                      {hasStarted && <span className="text-red-600">LIVE</span>}
                       {game.is_completed && <span>FINAL</span>}
-                      {!game.is_completed && !isLive && (
+                      {!game.is_completed && !hasStarted && (
                         <span className="text-gray-500">
                           {game.status_detail || 'SCHEDULED'}
                         </span>
@@ -139,7 +143,7 @@ export default async function GamesPage({
                         )}
                         <div>
                           <div className={`font-medium ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
-                            {game.away_team_rank && game.away_team_rank <= 25 && <span className="font-bold mr-1">#{game.away_team_rank}</span>}
+                            {game.away_team_ap_rank && game.away_team_ap_rank <= 25 && <span className="font-bold mr-1">#{game.away_team_ap_rank}</span>}
                             {game.away_team_name}
                           </div>
                           {game.away_team_record && (
@@ -157,7 +161,7 @@ export default async function GamesPage({
                         )}
                         <div>
                           <div className={`font-medium ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
-                            {game.home_team_rank && game.home_team_rank <= 25 && <span className="font-bold mr-1">#{game.home_team_rank}</span>}
+                            {game.home_team_ap_rank && game.home_team_ap_rank <= 25 && <span className="font-bold mr-1">#{game.home_team_ap_rank}</span>}
                             {game.home_team_name}
                           </div>
                           {game.home_team_record && (
@@ -171,17 +175,26 @@ export default async function GamesPage({
 
                     {/* Scores */}
                     <div className="text-right space-y-3 min-w-[60px]">
-                      <div className={`text-2xl font-bold ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
-                        {game.away_score || 0}
-                      </div>
-                      <div className={`text-2xl font-bold ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
-                        {game.home_score || 0}
-                      </div>
+                      {showScores ? (
+                        <>
+                          <div className={`text-2xl font-bold ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {game.away_score || 0}
+                          </div>
+                          <div className={`text-2xl font-bold ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {game.home_score || 0}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-2xl">&nbsp;</div>
+                          <div className="text-2xl">&nbsp;</div>
+                        </>
+                      )}
                     </div>
 
                     {/* Actions */}
                     <div className="ml-6 space-y-2">
-                      {game.is_completed || isLive ? (
+                      {showScores ? (
                         <Link
                           href={`/games/${game.event_id}`}
                           className="block px-4 py-1.5 text-sm text-center text-blue-600 border border-blue-600 rounded hover:bg-blue-50 whitespace-nowrap"
