@@ -21,26 +21,48 @@ interface Player {
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [positionFilter, setPositionFilter] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 100;
 
   useEffect(() => {
     async function fetchPlayers() {
+      const isInitialLoad = page === 1;
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
       try {
-        const res = await fetch(`${API_BASE}/api/players?season=2026&limit=200`);
+        const offset = (page - 1) * ITEMS_PER_PAGE;
+        const res = await fetch(`${API_BASE}/api/players?season=2026&limit=${ITEMS_PER_PAGE}&offset=${offset}`);
         if (res.ok) {
           const data = await res.json();
-          setPlayers(data.players || []);
+          const newPlayers = data.players || [];
+
+          if (isInitialLoad) {
+            setPlayers(newPlayers);
+          } else {
+            setPlayers(prev => [...prev, ...newPlayers]);
+          }
+
+          // Check if there are more players to load
+          setHasMore(newPlayers.length === ITEMS_PER_PAGE);
         }
       } catch (error) {
         console.error("Failed to fetch players:", error);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     }
     fetchPlayers();
-  }, []);
+  }, [page]);
 
   // Get unique positions and classes for filters
   const positions = useMemo(() => {
@@ -248,6 +270,25 @@ export default function PlayersPage() {
           </button>
         </div>
       ) : null}
+
+      {/* Load More Button */}
+      {!loading && filteredPlayers.length > 0 && hasMore && !searchTerm && !positionFilter && !classFilter && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => setPage(prev => prev + 1)}
+            disabled={loadingMore}
+            className="px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            {loadingMore ? "Loading..." : "Load More Players"}
+          </button>
+        </div>
+      )}
+
+      {!loading && !hasMore && players.length >= ITEMS_PER_PAGE && (
+        <div className="text-center text-sm text-gray-500">
+          All players loaded ({players.length} total)
+        </div>
+      )}
     </div>
   );
 }

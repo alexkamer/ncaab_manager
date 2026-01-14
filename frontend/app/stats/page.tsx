@@ -54,16 +54,37 @@ export default function StatsLeadersPage() {
     min_games: 5,
     min_attempts: null,
   });
+  const [conferences, setConferences] = useState<Array<{group_id: number, name: string}>>([]);
+  const [selectedConference, setSelectedConference] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("stat_value");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Fetch conferences
+  useEffect(() => {
+    async function fetchConferences() {
+      try {
+        const res = await fetch(`${API_BASE}/api/conferences`);
+        if (res.ok) {
+          const data = await res.json();
+          setConferences(data.conferences || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch conferences:", error);
+      }
+    }
+    fetchConferences();
+  }, []);
 
   useEffect(() => {
     async function fetchLeaders() {
       setLoading(true);
       try {
-        const res = await fetch(
-          `${API_BASE}/api/stats/leaders?season=2026&stat_category=${statCategory}&limit=50&min_games=5`
+        let url = `${API_BASE}/api/stats/leaders?season=2026&stat_category=${statCategory}&limit=50&min_games=5`;
+        if (selectedConference) {
+          url += `&conference_id=${selectedConference}`;
+        }
+        const res = await fetch(url
         );
         if (res.ok) {
           const data = await res.json();
@@ -93,7 +114,7 @@ export default function StatsLeadersPage() {
       }
     }
     fetchLeaders();
-  }, [statCategory]);
+  }, [statCategory, selectedConference]);
 
   // Reset sort when category changes
   useEffect(() => {
@@ -171,29 +192,59 @@ export default function StatsLeadersPage() {
 
       {/* Stat Category Selector */}
       <div className="border border-gray-200 p-4 bg-white">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-700">
-            Select Category:
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {STAT_CATEGORIES.map((cat) => (
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-gray-700">
+              Select Category:
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {STAT_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => setStatCategory(cat.value)}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    statCategory === cat.value
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Conference Filter */}
+          <div className="flex items-center gap-4">
+            <label htmlFor="conference" className="text-sm font-medium text-gray-700">
+              Conference:
+            </label>
+            <select
+              id="conference"
+              value={selectedConference}
+              onChange={(e) => setSelectedConference(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Conferences</option>
+              {conferences.map(conf => (
+                <option key={conf.group_id} value={conf.group_id}>{conf.name}</option>
+              ))}
+            </select>
+            {selectedConference && (
               <button
-                key={cat.value}
-                onClick={() => setStatCategory(cat.value)}
-                className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                  statCategory === cat.value
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
+                onClick={() => setSelectedConference("")}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
               >
-                {cat.label}
+                Clear
               </button>
-            ))}
+            )}
           </div>
         </div>
+
         <p className="mt-3 text-sm text-gray-500">
           Minimum {leadersData.min_games} games played
           {leadersData.min_attempts && ` • ${leadersData.min_attempts}+ attempts`}
+          {selectedConference && " • Filtered by conference"}
         </p>
       </div>
 
