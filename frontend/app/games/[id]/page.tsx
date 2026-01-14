@@ -364,108 +364,97 @@ export default async function GameDetailPage({
                   <h2 className="text-lg font-bold text-gray-900">Team Leaders</h2>
                 </div>
                 <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Away Team Leaders */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {/* Points Leaders */}
                     <div>
-                      <div className="flex items-center space-x-2 mb-4">
-                        <img src={game.away_team_logo} alt={game.away_team_name} className="w-6 h-6" />
-                        <h3 className="font-bold text-gray-900">{game.away_team_name}</h3>
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 pb-2 border-b border-gray-200">
+                        Points
                       </div>
-                      <div className="space-y-4">
-                        {/* Points */}
-                        {awayLeaders.points.length > 0 && (
-                          <div>
-                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Points</div>
-                            {awayLeaders.points.map((player, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-1">
-                                <span className="text-sm text-gray-700">
-                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
-                                </span>
-                                <span className="font-bold text-gray-900">{player.value}</span>
-                              </div>
-                            ))}
+                      <div className="space-y-3">
+                        {awayLeaders.points.slice(0, 1).map((player, idx) => (
+                          <div key={`away-pts-${idx}`} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <img src={game.away_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                              </span>
+                            </div>
+                            <span className="text-lg font-bold text-gray-900 ml-2">{player.value}</span>
                           </div>
-                        )}
-                        {/* Rebounds */}
-                        {awayLeaders.rebounds.length > 0 && (
-                          <div>
-                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Rebounds</div>
-                            {awayLeaders.rebounds.map((player, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-1">
-                                <span className="text-sm text-gray-700">
-                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
-                                </span>
-                                <span className="font-bold text-gray-900">{player.value}</span>
-                              </div>
-                            ))}
+                        ))}
+                        {homeLeaders.points.slice(0, 1).map((player, idx) => (
+                          <div key={`home-pts-${idx}`} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <img src={game.home_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                              </span>
+                            </div>
+                            <span className="text-lg font-bold text-gray-900 ml-2">{player.value}</span>
                           </div>
-                        )}
-                        {/* Assists */}
-                        {awayLeaders.assists.length > 0 && (
-                          <div>
-                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Assists</div>
-                            {awayLeaders.assists.map((player, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-1">
-                                <span className="text-sm text-gray-700">
-                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
-                                </span>
-                                <span className="font-bold text-gray-900">{player.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        ))}
                       </div>
                     </div>
 
-                    {/* Home Team Leaders */}
+                    {/* Rebounds Leaders */}
                     <div>
-                      <div className="flex items-center space-x-2 mb-4">
-                        <img src={game.home_team_logo} alt={game.home_team_name} className="w-6 h-6" />
-                        <h3 className="font-bold text-gray-900">{game.home_team_name}</h3>
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 pb-2 border-b border-gray-200">
+                        Rebounds
                       </div>
-                      <div className="space-y-4">
-                        {/* Points */}
-                        {homeLeaders.points.length > 0 && (
-                          <div>
-                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Points</div>
-                            {homeLeaders.points.map((player, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-1">
-                                <span className="text-sm text-gray-700">
-                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
-                                </span>
-                                <span className="font-bold text-gray-900">{player.value}</span>
-                              </div>
-                            ))}
+                      <div className="space-y-3">
+                        {awayLeaders.rebounds.slice(0, 1).map((player, idx) => (
+                          <div key={`away-reb-${idx}`} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <img src={game.away_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                              </span>
+                            </div>
+                            <span className="text-lg font-bold text-gray-900 ml-2">{player.value}</span>
                           </div>
-                        )}
-                        {/* Rebounds */}
-                        {homeLeaders.rebounds.length > 0 && (
-                          <div>
-                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Rebounds</div>
-                            {homeLeaders.rebounds.map((player, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-1">
-                                <span className="text-sm text-gray-700">
-                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
-                                </span>
-                                <span className="font-bold text-gray-900">{player.value}</span>
-                              </div>
-                            ))}
+                        ))}
+                        {homeLeaders.rebounds.slice(0, 1).map((player, idx) => (
+                          <div key={`home-reb-${idx}`} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <img src={game.home_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                              </span>
+                            </div>
+                            <span className="text-lg font-bold text-gray-900 ml-2">{player.value}</span>
                           </div>
-                        )}
-                        {/* Assists */}
-                        {homeLeaders.assists.length > 0 && (
-                          <div>
-                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Assists</div>
-                            {homeLeaders.assists.map((player, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-1">
-                                <span className="text-sm text-gray-700">
-                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
-                                </span>
-                                <span className="font-bold text-gray-900">{player.value}</span>
-                              </div>
-                            ))}
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Assists Leaders */}
+                    <div>
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 pb-2 border-b border-gray-200">
+                        Assists
+                      </div>
+                      <div className="space-y-3">
+                        {awayLeaders.assists.slice(0, 1).map((player, idx) => (
+                          <div key={`away-ast-${idx}`} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <img src={game.away_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                              </span>
+                            </div>
+                            <span className="text-lg font-bold text-gray-900 ml-2">{player.value}</span>
                           </div>
-                        )}
+                        ))}
+                        {homeLeaders.assists.slice(0, 1).map((player, idx) => (
+                          <div key={`home-ast-${idx}`} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <img src={game.home_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                              </span>
+                            </div>
+                            <span className="text-lg font-bold text-gray-900 ml-2">{player.value}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -525,72 +514,122 @@ export default async function GameDetailPage({
             return (
               <div className="border border-gray-200">
                 <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                  <h2 className="text-lg font-bold text-gray-900">Game Summary</h2>
+                  <h2 className="text-lg font-bold text-gray-900">Key Stats</h2>
                 </div>
                 <div className="p-6">
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="space-y-4">
                     {/* Turnovers */}
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Turnovers</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-red-800">{awayTurnovers}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-red-800">{homeTurnovers}</span>
-                      </div>
-                    </div>
-
-                    {/* Largest Lead */}
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Largest Lead</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-green-800">{awayLargestLead}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-green-800">{homeLargestLead}</span>
+                    <div className="flex items-center">
+                      <div className="w-32 text-xs font-semibold text-gray-500 uppercase tracking-wide">Turnovers</div>
+                      <div className="flex-1 flex items-center justify-between px-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">{game.away_team_abbreviation}</span>
+                          <span className="text-xl font-bold text-gray-900">{awayTurnovers}</span>
+                        </div>
+                        <div className="flex-1 mx-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gray-300 transition-all duration-500"
+                            style={{
+                              width: `${(Number(awayTurnovers) / (Number(awayTurnovers) + Number(homeTurnovers)) * 100).toFixed(0)}%`
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xl font-bold text-gray-900">{homeTurnovers}</span>
+                          <span className="text-sm font-medium text-gray-600">{game.home_team_abbreviation}</span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Fast Break Points */}
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Fast Break</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-yellow-800">{awayFastBreak}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-yellow-800">{homeFastBreak}</span>
+                    <div className="flex items-center">
+                      <div className="w-32 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fast Break</div>
+                      <div className="flex-1 flex items-center justify-between px-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">{game.away_team_abbreviation}</span>
+                          <span className="text-xl font-bold text-gray-900">{awayFastBreak}</span>
+                        </div>
+                        <div className="flex-1 mx-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gray-400 transition-all duration-500"
+                            style={{
+                              width: `${(Number(awayFastBreak) / (Number(awayFastBreak) + Number(homeFastBreak) || 1) * 100).toFixed(0)}%`
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xl font-bold text-gray-900">{homeFastBreak}</span>
+                          <span className="text-sm font-medium text-gray-600">{game.home_team_abbreviation}</span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Points in Paint */}
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Points in Paint</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-indigo-800">{awayPaint}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-indigo-800">{homePaint}</span>
+                    <div className="flex items-center">
+                      <div className="w-32 text-xs font-semibold text-gray-500 uppercase tracking-wide">Points in Paint</div>
+                      <div className="flex-1 flex items-center justify-between px-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">{game.away_team_abbreviation}</span>
+                          <span className="text-xl font-bold text-gray-900">{awayPaint}</span>
+                        </div>
+                        <div className="flex-1 mx-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gray-500 transition-all duration-500"
+                            style={{
+                              width: `${(Number(awayPaint) / (Number(awayPaint) + Number(homePaint) || 1) * 100).toFixed(0)}%`
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xl font-bold text-gray-900">{homePaint}</span>
+                          <span className="text-sm font-medium text-gray-600">{game.home_team_abbreviation}</span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Bench Points */}
-                    <div className="bg-pink-50 border border-pink-200 rounded-lg p-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Bench Points</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-pink-800">{awayBench}</span>
+                    <div className="flex items-center">
+                      <div className="w-32 text-xs font-semibold text-gray-500 uppercase tracking-wide">Bench Points</div>
+                      <div className="flex-1 flex items-center justify-between px-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">{game.away_team_abbreviation}</span>
+                          <span className="text-xl font-bold text-gray-900">{awayBench}</span>
+                        </div>
+                        <div className="flex-1 mx-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gray-600 transition-all duration-500"
+                            style={{
+                              width: `${(Number(awayBench) / (Number(awayBench) + Number(homeBench) || 1) * 100).toFixed(0)}%`
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xl font-bold text-gray-900">{homeBench}</span>
+                          <span className="text-sm font-medium text-gray-600">{game.home_team_abbreviation}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
-                        <span className="text-lg font-bold text-pink-800">{homeBench}</span>
+                    </div>
+
+                    {/* Largest Lead */}
+                    <div className="flex items-center">
+                      <div className="w-32 text-xs font-semibold text-gray-500 uppercase tracking-wide">Largest Lead</div>
+                      <div className="flex-1 flex items-center justify-between px-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">{game.away_team_abbreviation}</span>
+                          <span className="text-xl font-bold text-gray-900">{awayLargestLead}</span>
+                        </div>
+                        <div className="flex-1 mx-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gray-700 transition-all duration-500"
+                            style={{
+                              width: `${(Number(awayLargestLead) / (Number(awayLargestLead) + Number(homeLargestLead) || 1) * 100).toFixed(0)}%`
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xl font-bold text-gray-900">{homeLargestLead}</span>
+                          <span className="text-sm font-medium text-gray-600">{game.home_team_abbreviation}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
