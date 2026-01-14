@@ -206,13 +206,13 @@ class ESPNAPIClient:
         """
         return self.get_paginated(f'/seasons/{year}/types/{type_id}/groups')
 
-    def get_events(self, dates: str, limit: int = 1000, groups: int = 50) -> List[Dict]:
+    def get_events(self, dates: str, limit: int = 1000, groups: int = 52) -> List[Dict]:
         """Get events/games for a date range.
 
         Args:
             dates: Date string (YYYYMMDD, YYYYMM, or YYYY)
             limit: Maximum items per page
-            groups: Group ID filter (default 50 = Division I, omit for Top 25 only)
+            groups: Group ID filter (default 52 = Division I, omit for Top 25 only)
 
         Returns:
             List of event references
