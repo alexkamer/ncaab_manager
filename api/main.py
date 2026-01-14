@@ -200,6 +200,12 @@ async def fetch_box_score_from_espn(event_id: int) -> Dict[str, Any]:
         home_team = next((c for c in competitors if c.get('homeAway') == 'home'), {})
         away_team = next((c for c in competitors if c.get('homeAway') == 'away'), {})
 
+        # Extract venue and attendance from gameInfo section
+        game_info_section = data.get('gameInfo', {})
+        venue = game_info_section.get('venue', {})
+        venue_name = venue.get('fullName', '')
+        attendance = game_info_section.get('attendance', 0)
+
         # Build game info
         game_info = {
             'event_id': event_id,
@@ -207,16 +213,16 @@ async def fetch_box_score_from_espn(event_id: int) -> Dict[str, Any]:
             'status': competition.get('status', {}).get('type', {}).get('name', ''),
             'status_detail': competition.get('status', {}).get('type', {}).get('detail', ''),
             'is_completed': competition.get('status', {}).get('type', {}).get('completed', False),
-            'venue_name': competition.get('venue', {}).get('fullName', ''),
-            'attendance': competition.get('attendance', 0),
+            'venue_name': venue_name,
+            'attendance': attendance,
             'home_team_name': home_team.get('team', {}).get('displayName', ''),
             'home_team_abbr': home_team.get('team', {}).get('abbreviation', ''),
-            'home_team_logo': home_team.get('team', {}).get('logo', ''),
+            'home_team_logo': '',  # Will be populated from boxscore
             'home_team_color': home_team.get('team', {}).get('color', ''),
             'home_score': int(home_team.get('score', 0)) if home_team.get('score') else 0,
             'away_team_name': away_team.get('team', {}).get('displayName', ''),
             'away_team_abbr': away_team.get('team', {}).get('abbreviation', ''),
-            'away_team_logo': away_team.get('team', {}).get('logo', ''),
+            'away_team_logo': '',  # Will be populated from boxscore
             'away_team_color': away_team.get('team', {}).get('color', ''),
             'away_score': int(away_team.get('score', 0)) if away_team.get('score') else 0,
         }
@@ -224,6 +230,16 @@ async def fetch_box_score_from_espn(event_id: int) -> Dict[str, Any]:
         # Extract box score if available
         if 'boxscore' in data and 'players' in data['boxscore']:
             game_info['players'] = data['boxscore']['players']
+
+            # Extract team logos from boxscore players section
+            for team_data in data['boxscore']['players']:
+                team_abbr = team_data.get('team', {}).get('abbreviation', '')
+                team_logo = team_data.get('team', {}).get('logo', '')
+
+                if team_abbr == game_info['home_team_abbr']:
+                    game_info['home_team_logo'] = team_logo
+                elif team_abbr == game_info['away_team_abbr']:
+                    game_info['away_team_logo'] = team_logo
 
         # Extract team stats if available
         if 'boxscore' in data and 'teams' in data['boxscore']:
