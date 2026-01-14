@@ -20,7 +20,22 @@ export default function DateCarousel({ selectedDate, serverToday }: DateCarousel
   // Generate 7 days centered around today or selected date
   const generateDates = () => {
     const dates = [];
-    const centerDate = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date(todayStr + 'T12:00:00');
+    // Fallback to client date if serverToday is not available
+    const fallbackDate = new Date().toISOString().split('T')[0];
+    const baseDate = todayStr || fallbackDate;
+    const centerDate = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date(baseDate + 'T12:00:00');
+
+    // Validate the date
+    if (isNaN(centerDate.getTime())) {
+      // If invalid, use current date as fallback
+      const now = new Date();
+      for (let i = -3; i <= 3; i++) {
+        const date = new Date(now);
+        date.setDate(now.getDate() + i);
+        dates.push(date);
+      }
+      return dates;
+    }
 
     for (let i = -3; i <= 3; i++) {
       const date = new Date(centerDate);
