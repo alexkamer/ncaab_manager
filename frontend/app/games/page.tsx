@@ -36,6 +36,223 @@ interface Game {
   favorite_abbr?: string;
 }
 
+type GameStatus = 'live' | 'completed' | 'upcoming';
+
+function getGameStatus(game: Game): GameStatus {
+  if (!game.is_completed && ((game.away_score || 0) > 0 || (game.home_score || 0) > 0)) {
+    return 'live';
+  }
+  if (game.is_completed) {
+    return 'completed';
+  }
+  return 'upcoming';
+}
+
+function GameCard({ game, expanded, onToggle }: { game: Game; expanded: boolean; onToggle: () => void }) {
+  const awayWon = game.is_completed && (game.away_score || 0) > (game.home_score || 0);
+  const homeWon = game.is_completed && (game.home_score || 0) > (game.away_score || 0);
+  const status = getGameStatus(game);
+  const showScores = status !== 'upcoming';
+  const scoreDiff = Math.abs((game.away_score || 0) - (game.home_score || 0));
+
+  return (
+    <div className="border border-gray-200 hover:border-gray-300 transition-all bg-white">
+      <div className="p-4">
+        {/* Header Row */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Status Badge */}
+            {status === 'live' && (
+              <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold uppercase rounded border border-red-300 animate-pulse">
+                Live
+              </span>
+            )}
+            {status === 'completed' && (
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-bold uppercase rounded">
+                Final
+              </span>
+            )}
+            {status === 'upcoming' && game.status_detail && (
+              <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded">
+                {game.status_detail}
+              </span>
+            )}
+
+            {/* Conference Badge */}
+            {game.is_conference_game && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded border border-blue-200">
+                CONF
+              </span>
+            )}
+
+            {/* Score Differential (for completed games) */}
+            {status === 'completed' && scoreDiff > 0 && (
+              <span className="px-2 py-1 bg-gray-50 text-gray-600 text-xs font-medium rounded">
+                {scoreDiff > 20 ? 'Blowout' : scoreDiff > 10 ? 'Comfortable' : 'Close'} ({scoreDiff})
+              </span>
+            )}
+
+            {/* Spread Badge (for upcoming games) */}
+            {status === 'upcoming' && (game.spread !== null && game.spread !== undefined) && (
+              <span className="px-2 py-1 bg-green-100 border border-green-300 rounded text-xs font-bold text-green-800">
+                {game.favorite_abbr} {game.spread > 0 ? '+' : ''}{game.spread}
+              </span>
+            )}
+          </div>
+
+          <div className="text-right">
+            <div className="text-xs text-gray-500 truncate max-w-[200px]">
+              {game.venue_name}
+            </div>
+            {game.over_under && status === 'upcoming' && (
+              <div className="text-xs font-semibold text-gray-700 mt-0.5">
+                O/U {game.over_under}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Teams and Scores */}
+        <div className="flex items-center justify-between">
+          {/* Teams */}
+          <div className="flex-1 space-y-2.5">
+            {/* Away Team */}
+            <div className="flex items-center space-x-3">
+              {game.away_team_logo && (
+                <img
+                  src={game.away_team_logo}
+                  alt={game.away_team_name}
+                  className="w-10 h-10 flex-shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className={`font-medium truncate ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-700'}`}>
+                  {game.away_team_ap_rank && game.away_team_ap_rank <= 25 && (
+                    <span className="inline-block w-6 text-center font-bold mr-1">#{game.away_team_ap_rank}</span>
+                  )}
+                  {game.away_team_name}
+                </div>
+                {game.away_team_record && (
+                  <div className="text-xs text-gray-500">
+                    {game.away_team_record}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Home Team */}
+            <div className="flex items-center space-x-3">
+              {game.home_team_logo && (
+                <img
+                  src={game.home_team_logo}
+                  alt={game.home_team_name}
+                  className="w-10 h-10 flex-shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className={`font-medium truncate ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-700'}`}>
+                  {game.home_team_ap_rank && game.home_team_ap_rank <= 25 && (
+                    <span className="inline-block w-6 text-center font-bold mr-1">#{game.home_team_ap_rank}</span>
+                  )}
+                  {game.home_team_name}
+                </div>
+                {game.home_team_record && (
+                  <div className="text-xs text-gray-500">
+                    {game.home_team_record}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Scores */}
+          <div className="text-right space-y-2.5 min-w-[70px] ml-4">
+            {showScores ? (
+              <>
+                <div className={`text-3xl font-bold tabular-nums ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {game.away_score || 0}
+                </div>
+                <div className={`text-3xl font-bold tabular-nums ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {game.home_score || 0}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="h-[36px]"></div>
+                <div className="h-[36px]"></div>
+              </>
+            )}
+          </div>
+
+          {/* Action Button */}
+          <div className="ml-4 flex flex-col gap-2">
+            {showScores ? (
+              <Link
+                href={`/games/${game.event_id}`}
+                className="px-4 py-2 text-sm font-medium text-center text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
+              >
+                Box Score
+              </Link>
+            ) : (
+              <Link
+                href={`/games/${game.event_id}/preview`}
+                className="px-4 py-2 text-sm font-medium text-center text-white bg-green-600 rounded hover:bg-green-700 transition-colors whitespace-nowrap"
+              >
+                Preview
+              </Link>
+            )}
+            {showScores && (
+              <button
+                onClick={onToggle}
+                className="px-4 py-1 text-xs font-medium text-center text-gray-600 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              >
+                {expanded ? 'Less' : 'More'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Expanded Quick Stats */}
+        {expanded && showScores && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="font-medium text-gray-700 mb-1">Game Info</div>
+                <div className="text-xs text-gray-600 space-y-0.5">
+                  <div>Status: {game.status}</div>
+                  {game.status_detail && <div>{game.status_detail}</div>}
+                  {status === 'completed' && scoreDiff > 0 && (
+                    <div className="font-medium text-gray-700 mt-1">
+                      Margin of Victory: {scoreDiff} points
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="font-medium text-gray-700 mb-1">Betting</div>
+                <div className="text-xs text-gray-600 space-y-0.5">
+                  {game.spread !== null && game.spread !== undefined && (
+                    <div>Spread: {game.favorite_abbr} {game.spread > 0 ? '+' : ''}{game.spread}</div>
+                  )}
+                  {game.over_under && (
+                    <div>Over/Under: {game.over_under}</div>
+                  )}
+                  {status === 'completed' && game.over_under && (
+                    <div className="font-medium text-gray-700 mt-1">
+                      Total: {(game.away_score || 0) + (game.home_score || 0)}
+                      ({(game.away_score || 0) + (game.home_score || 0) > game.over_under ? 'Over' : 'Under'})
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function GamesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -47,6 +264,7 @@ export default function GamesPage() {
   const [conferenceOnly, setConferenceOnly] = useState(false);
   const [rankedOnly, setRankedOnly] = useState(false);
   const [searchTeam, setSearchTeam] = useState('');
+  const [expandedGames, setExpandedGames] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     async function fetchData() {
@@ -91,9 +309,9 @@ export default function GamesPage() {
     fetchData();
   }, [selectedDate, router]);
 
-  // Filter games
-  const filteredGames = useMemo(() => {
-    return games.filter(game => {
+  // Filter and group games
+  const { filteredGames, groupedGames } = useMemo(() => {
+    const filtered = games.filter(game => {
       // Conference games only filter
       if (conferenceOnly && !game.is_conference_game) {
         return false;
@@ -120,6 +338,23 @@ export default function GamesPage() {
 
       return true;
     });
+
+    // Group by status
+    const grouped = {
+      live: [] as Game[],
+      completed: [] as Game[],
+      upcoming: [] as Game[]
+    };
+
+    filtered.forEach(game => {
+      const status = getGameStatus(game);
+      grouped[status].push(game);
+    });
+
+    // Sort upcoming games by time
+    grouped.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return { filteredGames: filtered, groupedGames: grouped };
   }, [games, conferenceOnly, rankedOnly, searchTeam]);
 
   // Get the display date
@@ -149,6 +384,20 @@ export default function GamesPage() {
     }
   };
 
+  const toggleExpanded = (eventId: number) => {
+    setExpandedGames(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) {
+        next.delete(eventId);
+      } else {
+        next.add(eventId);
+      }
+      return next;
+    });
+  };
+
+  const totalGames = groupedGames.live.length + groupedGames.completed.length + groupedGames.upcoming.length;
+
   return (
     <div className="space-y-6">
       <div className="border-b border-gray-200 pb-6">
@@ -158,7 +407,7 @@ export default function GamesPage() {
       <DateCarousel selectedDate={selectedDate} serverToday={serverToday} />
 
       {/* Filters */}
-      <div className="border border-gray-200 p-4 bg-white">
+      <div className="border border-gray-200 p-4 bg-white rounded-lg shadow-sm">
         <div className="space-y-4">
           {/* Quick Filter Buttons */}
           <div className="flex flex-wrap gap-2">
@@ -166,7 +415,7 @@ export default function GamesPage() {
               onClick={() => handleQuickFilter('reset')}
               className={`px-4 py-2 rounded-md font-medium transition-colors ${
                 !conferenceOnly && !rankedOnly && !searchTeam
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -176,7 +425,7 @@ export default function GamesPage() {
               onClick={() => handleQuickFilter('conference')}
               className={`px-4 py-2 rounded-md font-medium transition-colors ${
                 conferenceOnly
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -186,7 +435,7 @@ export default function GamesPage() {
               onClick={() => handleQuickFilter('ranked')}
               className={`px-4 py-2 rounded-md font-medium transition-colors ${
                 rankedOnly
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -205,15 +454,18 @@ export default function GamesPage() {
               value={searchTeam}
               onChange={(e) => setSearchTeam(e.target.value)}
               placeholder="Search for a team..."
-              className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           {/* Results count */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">
-              Showing {filteredGames.length} of {games.length} games
-            </span>
+            <div className="text-sm text-gray-600 space-x-4">
+              <span className="font-medium">Showing {totalGames} of {games.length} games</span>
+              {groupedGames.live.length > 0 && (
+                <span className="text-red-600 font-semibold">• {groupedGames.live.length} Live</span>
+              )}
+            </div>
             {(conferenceOnly || rankedOnly || searchTeam) && (
               <button
                 onClick={() => handleQuickFilter('reset')}
@@ -232,142 +484,74 @@ export default function GamesPage() {
 
       {/* Loading State */}
       {loading && (
-        <div className="border border-gray-200 p-8 text-center text-gray-500">
+        <div className="border border-gray-200 p-8 text-center text-gray-500 rounded-lg">
           <p>Loading games...</p>
         </div>
       )}
 
-      {/* Games List */}
-      {!loading && filteredGames && filteredGames.length > 0 ? (
-        <div className="space-y-4">
-          {filteredGames.map((game) => {
-            const awayWon = game.is_completed && (game.away_score || 0) > (game.home_score || 0);
-            const homeWon = game.is_completed && (game.home_score || 0) > (game.away_score || 0);
-            const hasStarted = !game.is_completed && ((game.away_score || 0) > 0 || (game.home_score || 0) > 0);
-            const showScores = game.is_completed || hasStarted;
-
-            return (
-              <div key={game.event_id} className="border border-gray-200">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="text-xs font-semibold text-gray-900 uppercase">
-                        {hasStarted && <span className="text-red-600">LIVE</span>}
-                        {game.is_completed && <span>FINAL</span>}
-                        {!game.is_completed && !hasStarted && (
-                          <span className="text-gray-500">
-                            {game.status_detail || 'SCHEDULED'}
-                          </span>
-                        )}
-                        {game.is_conference_game && (
-                          <span className="ml-2 text-xs text-blue-600 font-medium">CONF</span>
-                        )}
-                      </div>
-                      {/* Prominent Spread Badge */}
-                      {(game.spread !== null && game.spread !== undefined) && !game.is_completed && (
-                        <div className="px-2 py-1 bg-green-100 border border-green-300 rounded text-xs font-bold text-green-800">
-                          {game.favorite_abbr} {game.spread > 0 ? '+' : ''}{game.spread}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">
-                        {game.venue_name}
-                      </div>
-                      {/* Enhanced O/U Display */}
-                      {game.over_under && !game.is_completed && (
-                        <div className="text-sm font-semibold text-gray-700 mt-1">
-                          O/U {game.over_under}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    {/* Teams */}
-                    <div className="flex-1 space-y-3">
-                      {/* Away Team */}
-                      <div className="flex items-center space-x-3">
-                        {game.away_team_logo && (
-                          <img src={game.away_team_logo} alt={game.away_team_name} className="w-8 h-8" />
-                        )}
-                        <div>
-                          <div className={`font-medium ${awayWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
-                            {game.away_team_ap_rank && game.away_team_ap_rank <= 25 && <span className="font-bold mr-1">#{game.away_team_ap_rank}</span>}
-                            {game.away_team_name}
-                          </div>
-                          {game.away_team_record && (
-                            <div className="text-xs text-gray-500">
-                              {game.away_team_record}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Home Team */}
-                      <div className="flex items-center space-x-3">
-                        {game.home_team_logo && (
-                          <img src={game.home_team_logo} alt={game.home_team_name} className="w-8 h-8" />
-                        )}
-                        <div>
-                          <div className={`font-medium ${homeWon ? 'text-gray-900 font-bold' : 'text-gray-600'}`}>
-                            {game.home_team_ap_rank && game.home_team_ap_rank <= 25 && <span className="font-bold mr-1">#{game.home_team_ap_rank}</span>}
-                            {game.home_team_name}
-                          </div>
-                          {game.home_team_record && (
-                            <div className="text-xs text-gray-500">
-                              {game.home_team_record}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Scores */}
-                    <div className="text-right space-y-3 min-w-[60px]">
-                      {showScores ? (
-                        <>
-                          <div className={`text-2xl font-bold ${awayWon ? 'text-gray-900' : 'text-gray-400'}`}>
-                            {game.away_score || 0}
-                          </div>
-                          <div className={`text-2xl font-bold ${homeWon ? 'text-gray-900' : 'text-gray-400'}`}>
-                            {game.home_score || 0}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-2xl">&nbsp;</div>
-                          <div className="text-2xl">&nbsp;</div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="ml-6 space-y-2">
-                      {showScores ? (
-                        <Link
-                          href={`/games/${game.event_id}`}
-                          className="block px-4 py-1.5 text-sm text-center text-blue-600 border border-blue-600 rounded hover:bg-blue-50 whitespace-nowrap"
-                        >
-                          Box Score
-                        </Link>
-                      ) : (
-                        <Link
-                          href={`/games/${game.event_id}/preview`}
-                          className="block px-4 py-1.5 text-sm text-center text-green-600 border border-green-600 rounded hover:bg-green-50 whitespace-nowrap"
-                        >
-                          Preview
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </div>
+      {/* Games List - Grouped by Status */}
+      {!loading && totalGames > 0 ? (
+        <div className="space-y-6">
+          {/* Live Games */}
+          {groupedGames.live.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <span className="inline-block w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
+                Live Now ({groupedGames.live.length})
+              </h3>
+              <div className="space-y-3">
+                {groupedGames.live.map((game) => (
+                  <GameCard
+                    key={game.event_id}
+                    game={game}
+                    expanded={expandedGames.has(game.event_id)}
+                    onToggle={() => toggleExpanded(game.event_id)}
+                  />
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          {/* Completed Games */}
+          {groupedGames.completed.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Final ({groupedGames.completed.length})
+              </h3>
+              <div className="space-y-3">
+                {groupedGames.completed.map((game) => (
+                  <GameCard
+                    key={game.event_id}
+                    game={game}
+                    expanded={expandedGames.has(game.event_id)}
+                    onToggle={() => toggleExpanded(game.event_id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming Games */}
+          {groupedGames.upcoming.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Upcoming ({groupedGames.upcoming.length})
+              </h3>
+              <div className="space-y-3">
+                {groupedGames.upcoming.map((game) => (
+                  <GameCard
+                    key={game.event_id}
+                    game={game}
+                    expanded={expandedGames.has(game.event_id)}
+                    onToggle={() => toggleExpanded(game.event_id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      ) : !loading && filteredGames.length === 0 ? (
-        <div className="border border-gray-200 p-8 text-center text-gray-500">
+      ) : !loading && totalGames === 0 ? (
+        <div className="border border-gray-200 p-8 text-center text-gray-500 rounded-lg">
           <p>No games found matching your filters for the selected date.</p>
           {(conferenceOnly || rankedOnly || searchTeam) && (
             <button
