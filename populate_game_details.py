@@ -202,8 +202,18 @@ def populate_game_details(db: Database, client: ESPNAPIClient,
 
     # Get event IDs if not provided
     if event_ids is None:
+        # Only get events that don't have player statistics yet
         cursor = db.execute(
-            "SELECT event_id FROM events WHERE is_completed = 1 ORDER BY date DESC"
+            """
+            SELECT e.event_id
+            FROM events e
+            WHERE e.is_completed = 1
+            AND NOT EXISTS (
+                SELECT 1 FROM player_statistics ps
+                WHERE ps.event_id = e.event_id
+            )
+            ORDER BY e.date DESC
+            """
         )
         event_ids = [row[0] for row in cursor.fetchall()]
 
