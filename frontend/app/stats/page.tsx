@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import PlayerHeadshot from "./PlayerHeadshot";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
