@@ -143,12 +143,11 @@ export default async function Home() {
     !g.is_completed && (g.away_score || 0) === 0 && (g.home_score || 0) === 0
   );
 
-  // Find ranked matchups (games where both teams are in top 25)
-  const rankedTeamIds = new Set(rankingsData.rankings.slice(0, 25).map((r: any) => r.team_id));
-  const rankedMatchups = completedGames.filter((g: Game) => {
-    // This is a rough approximation - ideally we'd have team_id on games
-    return g.is_conference_game; // Using conference games as proxy for "featured"
-  }).slice(0, 3);
+  // Featured games: Live games first, then upcoming conference games
+  const featuredGames = [
+    ...liveGames.slice(0, 3),
+    ...upcomingGames.filter((g: Game) => g.is_conference_game).slice(0, 3 - liveGames.length)
+  ].slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -183,16 +182,18 @@ export default async function Home() {
         {/* Main Content - 3 columns */}
         <div className="lg:col-span-3 space-y-6">
           {/* Featured Games */}
-          {rankedMatchups.length > 0 && (
+          {featuredGames.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-bold text-gray-900">Featured Games</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {liveGames.length > 0 ? 'Live Now' : 'Featured Games'}
+                </h2>
                 <Link href="/games" className="text-sm font-medium text-blue-600 hover:text-blue-800">
                   All Games →
                 </Link>
               </div>
               <div className="space-y-3">
-                {rankedMatchups.map((game: Game) => (
+                {featuredGames.map((game: Game) => (
                   <GameCard key={game.event_id} game={game} />
                 ))}
               </div>
