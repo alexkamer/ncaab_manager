@@ -1,4 +1,22 @@
 """
+DEPRECATED: Use update.py instead
+
+This script has been replaced by the unified update.py script which provides:
+- All functionality from this script (Phases 1-3)
+- Automatic backfill for missing data (Phase 4)
+- Rankings and standings updates (Phases 5-6)
+- Automatic entity discovery (Phase 7)
+- Better progress reporting and error handling
+
+Usage:
+    python update.py              # Replaces this script with 7-day window
+    python update.py --days 2     # Same as old 2-day default
+
+This script is kept for reference only.
+
+---
+
+OLD DOCUMENTATION:
 Incremental update script for NCAA Basketball data.
 Efficiently updates only new/changed data since the last update.
 

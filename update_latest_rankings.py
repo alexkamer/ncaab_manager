@@ -1,4 +1,17 @@
 """
+DEPRECATED: Use update.py instead
+
+This script has been replaced by update.py Phase 5.
+
+Usage:
+    python update.py                # Includes rankings update
+    python update.py --skip-backfill --skip-standings --skip-entities  # Rankings only
+
+This script is kept for reference only.
+
+---
+
+OLD DOCUMENTATION:
 Update only the latest week's rankings from ESPN API.
 This fetches the most recent AP Poll rankings and stores them in the database.
 """

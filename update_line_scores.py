@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 """
+DEPRECATED: Use update.py instead
+
+This functionality is now handled by update.py:
+- Phase 1 includes line scores in event updates
+- Phase 4 backfills missing line scores automatically
+
+Usage:
+    python update.py              # Includes line scores automatically
+    python update.py --backfill-only  # Only backfill missing line scores
+
+This script is kept for reference only.
+
+---
+
+OLD DOCUMENTATION:
 Update line scores for existing completed games in the database.
 Fetches line scores from ESPN API and stores them in the events table.
 """
