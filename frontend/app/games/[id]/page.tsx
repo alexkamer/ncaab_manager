@@ -287,6 +287,353 @@ export default async function GameDetailPage({
         </div>
       )}
 
+      {/* Team Leaders */}
+      {game.is_completed && (
+        <>
+          {(() => {
+            // Extract team leaders based on format
+            let awayLeaders: { points: any[], rebounds: any[], assists: any[] } = { points: [], rebounds: [], assists: [] };
+            let homeLeaders: { points: any[], rebounds: any[], assists: any[] } = { points: [], rebounds: [], assists: [] };
+
+            if (game.source === 'espn' && game.players) {
+              // ESPN format
+              game.players.forEach((teamData) => {
+                const allPlayers = teamData.statistics[0]?.athletes || [];
+                const isHomeTeam = teamData.team.id === game.home_team_id;
+                const leaders = isHomeTeam ? homeLeaders : awayLeaders;
+
+                // Find points index
+                const pointsIndex = teamData.statistics[0]?.labels?.indexOf('PTS') ?? -1;
+                const reboundsIndex = teamData.statistics[0]?.labels?.indexOf('REB') ?? -1;
+                const assistsIndex = teamData.statistics[0]?.labels?.indexOf('AST') ?? -1;
+
+                if (pointsIndex !== -1) {
+                  leaders.points = allPlayers
+                    .map(p => ({ ...p, value: parseInt(p.stats?.[pointsIndex] || '0') }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 3);
+                }
+                if (reboundsIndex !== -1) {
+                  leaders.rebounds = allPlayers
+                    .map(p => ({ ...p, value: parseInt(p.stats?.[reboundsIndex] || '0') }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 3);
+                }
+                if (assistsIndex !== -1) {
+                  leaders.assists = allPlayers
+                    .map(p => ({ ...p, value: parseInt(p.stats?.[assistsIndex] || '0') }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 3);
+                }
+              });
+            } else if (game.player_stats && game.player_stats.length > 0) {
+              // Database format
+              const playersByTeam = game.player_stats.reduce((acc, player) => {
+                const teamId = (player as any).team_id;
+                if (!acc[teamId]) acc[teamId] = [];
+                acc[teamId].push(player);
+                return acc;
+              }, {} as Record<number, any[]>);
+
+              Object.entries(playersByTeam).forEach(([teamId, players]) => {
+                const isHomeTeam = Number(teamId) === game.home_team_id;
+                const leaders = isHomeTeam ? homeLeaders : awayLeaders;
+
+                leaders.points = players
+                  .map(p => ({ ...p, value: p.points || 0 }))
+                  .sort((a, b) => b.value - a.value)
+                  .slice(0, 3);
+
+                leaders.rebounds = players
+                  .map(p => ({ ...p, value: p.rebounds || 0 }))
+                  .sort((a, b) => b.value - a.value)
+                  .slice(0, 3);
+
+                leaders.assists = players
+                  .map(p => ({ ...p, value: p.assists || 0 }))
+                  .sort((a, b) => b.value - a.value)
+                  .slice(0, 3);
+              });
+            }
+
+            if (awayLeaders.points.length === 0 && homeLeaders.points.length === 0) return null;
+
+            return (
+              <div className="border border-gray-200">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                  <h2 className="text-lg font-bold text-gray-900">Team Leaders</h2>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Away Team Leaders */}
+                    <div>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <img src={game.away_team_logo} alt={game.away_team_name} className="w-6 h-6" />
+                        <h3 className="font-bold text-gray-900">{game.away_team_name}</h3>
+                      </div>
+                      <div className="space-y-4">
+                        {/* Points */}
+                        {awayLeaders.points.length > 0 && (
+                          <div>
+                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Points</div>
+                            {awayLeaders.points.map((player, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1">
+                                <span className="text-sm text-gray-700">
+                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                                </span>
+                                <span className="font-bold text-gray-900">{player.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Rebounds */}
+                        {awayLeaders.rebounds.length > 0 && (
+                          <div>
+                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Rebounds</div>
+                            {awayLeaders.rebounds.map((player, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1">
+                                <span className="text-sm text-gray-700">
+                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                                </span>
+                                <span className="font-bold text-gray-900">{player.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Assists */}
+                        {awayLeaders.assists.length > 0 && (
+                          <div>
+                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Assists</div>
+                            {awayLeaders.assists.map((player, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1">
+                                <span className="text-sm text-gray-700">
+                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                                </span>
+                                <span className="font-bold text-gray-900">{player.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Home Team Leaders */}
+                    <div>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <img src={game.home_team_logo} alt={game.home_team_name} className="w-6 h-6" />
+                        <h3 className="font-bold text-gray-900">{game.home_team_name}</h3>
+                      </div>
+                      <div className="space-y-4">
+                        {/* Points */}
+                        {homeLeaders.points.length > 0 && (
+                          <div>
+                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Points</div>
+                            {homeLeaders.points.map((player, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1">
+                                <span className="text-sm text-gray-700">
+                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                                </span>
+                                <span className="font-bold text-gray-900">{player.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Rebounds */}
+                        {homeLeaders.rebounds.length > 0 && (
+                          <div>
+                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Rebounds</div>
+                            {homeLeaders.rebounds.map((player, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1">
+                                <span className="text-sm text-gray-700">
+                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                                </span>
+                                <span className="font-bold text-gray-900">{player.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Assists */}
+                        {homeLeaders.assists.length > 0 && (
+                          <div>
+                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Assists</div>
+                            {homeLeaders.assists.map((player, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1">
+                                <span className="text-sm text-gray-700">
+                                  {game.source === 'espn' ? player.athlete?.displayName : (player.display_name || player.full_name)}
+                                </span>
+                                <span className="font-bold text-gray-900">{player.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </>
+      )}
+
+      {/* Game Summary */}
+      {game.is_completed && game.team_stats && game.team_stats.length === 2 && (
+        <>
+          {(() => {
+            const awayStats = game.team_stats.find((t: any) => t.homeAway === 'away' || t.home_away === 'away');
+            const homeStats = game.team_stats.find((t: any) => t.homeAway === 'home' || t.home_away === 'home');
+
+            if (!awayStats || !homeStats) return null;
+
+            // Check format
+            const isESPNFormat = awayStats.statistics !== undefined;
+
+            let awayFgPct, homeFgPct, away3PtPct, home3PtPct, awayTurnovers, homeTurnovers;
+            let awayFastBreak, homeFastBreak, awayPaint, homePaint, awayBench, homeBench;
+            let awayLargestLead, homeLargestLead;
+
+            if (isESPNFormat) {
+              // ESPN format
+              const getStatValue = (stats: any[], name: string) => {
+                return stats.find((s: any) => s.name === name)?.displayValue || '0';
+              };
+
+              awayFgPct = getStatValue(awayStats.statistics, 'fieldGoalPct');
+              homeFgPct = getStatValue(homeStats.statistics, 'fieldGoalPct');
+              away3PtPct = getStatValue(awayStats.statistics, 'threePointFieldGoalPct');
+              home3PtPct = getStatValue(homeStats.statistics, 'threePointFieldGoalPct');
+              awayTurnovers = getStatValue(awayStats.statistics, 'turnovers');
+              homeTurnovers = getStatValue(homeStats.statistics, 'turnovers');
+              awayFastBreak = getStatValue(awayStats.statistics, 'fastBreakPoints');
+              homeFastBreak = getStatValue(homeStats.statistics, 'fastBreakPoints');
+              awayPaint = getStatValue(awayStats.statistics, 'pointsInPaint');
+              homePaint = getStatValue(homeStats.statistics, 'pointsInPaint');
+              awayBench = getStatValue(awayStats.statistics, 'benchPoints');
+              homeBench = getStatValue(homeStats.statistics, 'benchPoints');
+              awayLargestLead = getStatValue(awayStats.statistics, 'largestLead');
+              homeLargestLead = getStatValue(homeStats.statistics, 'largestLead');
+            } else {
+              // Database format
+              awayFgPct = awayStats.field_goal_pct ? `${(awayStats.field_goal_pct * 100).toFixed(1)}%` : '0%';
+              homeFgPct = homeStats.field_goal_pct ? `${(homeStats.field_goal_pct * 100).toFixed(1)}%` : '0%';
+              away3PtPct = awayStats.three_point_pct ? `${(awayStats.three_point_pct * 100).toFixed(1)}%` : '0%';
+              home3PtPct = homeStats.three_point_pct ? `${(homeStats.three_point_pct * 100).toFixed(1)}%` : '0%';
+              awayTurnovers = awayStats.total_turnovers || awayStats.turnovers || 0;
+              homeTurnovers = homeStats.total_turnovers || homeStats.turnovers || 0;
+              awayFastBreak = awayStats.fast_break_points || 0;
+              homeFastBreak = homeStats.fast_break_points || 0;
+              awayPaint = awayStats.points_in_paint || 0;
+              homePaint = homeStats.points_in_paint || 0;
+              awayBench = awayStats.bench_points || 0;
+              homeBench = homeStats.bench_points || 0;
+              awayLargestLead = awayStats.largest_lead || 0;
+              homeLargestLead = homeStats.largest_lead || 0;
+            }
+
+            return (
+              <div className="border border-gray-200">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                  <h2 className="text-lg font-bold text-gray-900">Game Summary</h2>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Shooting Efficiency */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">FG%</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-blue-800">{awayFgPct}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-blue-800">{homeFgPct}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">3PT%</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-purple-800">{away3PtPct}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-purple-800">{home3PtPct}</span>
+                      </div>
+                    </div>
+
+                    {/* Turnovers */}
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Turnovers</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-red-800">{awayTurnovers}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-red-800">{homeTurnovers}</span>
+                      </div>
+                    </div>
+
+                    {/* Largest Lead */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Largest Lead</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-green-800">{awayLargestLead}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-green-800">{homeLargestLead}</span>
+                      </div>
+                    </div>
+
+                    {/* Fast Break Points */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Fast Break</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-yellow-800">{awayFastBreak}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-yellow-800">{homeFastBreak}</span>
+                      </div>
+                    </div>
+
+                    {/* Points in Paint */}
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Points in Paint</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-indigo-800">{awayPaint}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-indigo-800">{homePaint}</span>
+                      </div>
+                    </div>
+
+                    {/* Bench Points */}
+                    <div className="bg-pink-50 border border-pink-200 rounded-lg p-4">
+                      <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Bench Points</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">{game.away_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-pink-800">{awayBench}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-sm text-gray-600">{game.home_team_abbreviation}</span>
+                        <span className="text-lg font-bold text-pink-800">{homeBench}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </>
+      )}
+
       {/* Betting Information */}
       {!game.is_completed && (game.spread !== null && game.spread !== undefined || game.over_under) && (
         <div className="border border-gray-200">
