@@ -88,13 +88,33 @@ export interface FilterState {
 }
 
 // Helper function to detect lead changes
-export function isLeadChange(currentPlay: EnhancedPlay, previousPlay: EnhancedPlay): boolean {
-  const prevLeader = previousPlay.homeScore > previousPlay.awayScore ? "home" :
-                     previousPlay.awayScore > previousPlay.homeScore ? "away" : "tied";
+// A lead change only occurs when a different team takes the lead
+// (not when the same team retakes the lead after a tie)
+export function isLeadChange(currentPlay: EnhancedPlay, previousPlay: EnhancedPlay, allPlays: EnhancedPlay[]): boolean {
   const currLeader = currentPlay.homeScore > currentPlay.awayScore ? "home" :
                      currentPlay.awayScore > currentPlay.homeScore ? "away" : "tied";
 
-  return prevLeader !== currLeader && currLeader !== "tied";
+  // Current play must result in a team leading (not tied)
+  if (currLeader === "tied") {
+    return false;
+  }
+
+  // Find the last play where a team had the lead (skip ties)
+  const currentIndex = allPlays.findIndex(p => p.id === currentPlay.id);
+  for (let i = currentIndex - 1; i >= 0; i--) {
+    const play = allPlays[i];
+    const leader = play.homeScore > play.awayScore ? "home" :
+                   play.awayScore > play.homeScore ? "away" : "tied";
+
+    if (leader !== "tied") {
+      // This is the last time someone had the lead
+      // It's a lead change only if the current leader is different
+      return leader !== currLeader;
+    }
+  }
+
+  // No previous leader found (start of game), so this is the first lead
+  return true;
 }
 
 // Helper function to detect when score becomes tied

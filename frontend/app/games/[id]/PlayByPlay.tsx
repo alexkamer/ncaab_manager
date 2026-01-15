@@ -87,7 +87,7 @@ export default function PlayByPlay({
   const leadChangePlayIds = useMemo(() => {
     const ids = new Set<string>();
     for (let i = 1; i < plays.length; i++) {
-      if (isLeadChange(plays[i], plays[i - 1])) {
+      if (isLeadChange(plays[i], plays[i - 1], plays)) {
         ids.add(plays[i].id);
       }
     }

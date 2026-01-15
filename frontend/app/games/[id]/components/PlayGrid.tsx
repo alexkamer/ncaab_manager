@@ -56,7 +56,7 @@ export default function PlayGrid({
     <div className="max-h-[600px] overflow-y-auto">
       {plays.map((play, index) => {
         const prevPlay = index > 0 ? plays[index - 1] : undefined;
-        const leadChange = prevPlay ? isLeadChange(play, prevPlay) : false;
+        const leadChange = prevPlay ? isLeadChange(play, prevPlay, plays) : false;
         const tied = prevPlay ? isTied(play, prevPlay) : false;
         const momentumPlay = momentumPlayIds.has(play.id);
 
