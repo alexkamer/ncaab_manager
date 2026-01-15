@@ -26,10 +26,12 @@ interface OverviewTabProps {
     color?: string;
     id?: number;
   };
-  leadingScorers: {
+  teamLeaders: {
     away: Player[];
     home: Player[];
   };
+  selectedStatType: string;
+  onStatTypeChange: (statType: string) => void;
   shootingEfficiency: {
     away: { fgPct: number; fgMade: number; fgAttempted: number };
     home: { fgPct: number; fgMade: number; fgAttempted: number };
@@ -43,12 +45,27 @@ export default function OverviewTab({
   eventId,
   awayTeam,
   homeTeam,
-  leadingScorers,
+  teamLeaders,
+  selectedStatType,
+  onStatTypeChange,
   shootingEfficiency,
   leadChanges,
   isCompleted,
   onViewLeadChanges,
 }: OverviewTabProps) {
+  // Stat type options
+  const statTypes = [
+    { value: 'PTS', label: 'Points', unit: 'PTS' },
+    { value: 'REB', label: 'Rebounds', unit: 'REB' },
+    { value: 'AST', label: 'Assists', unit: 'AST' },
+    { value: 'STL', label: 'Steals', unit: 'STL' },
+    { value: 'BLK', label: 'Blocks', unit: 'BLK' },
+    { value: 'FG%', label: 'FG%', unit: '%' },
+    { value: '3PT', label: '3-Pointers', unit: '3PT' },
+  ];
+
+  const currentStatType = statTypes.find(s => s.value === selectedStatType) || statTypes[0];
+
   // Helper function to get dynamic font size based on name length
   const getNameFontSize = (name: string) => {
     const length = name.length;
@@ -58,36 +75,59 @@ export default function OverviewTab({
     return 'text-[11px]'; // 11px for very long names
   };
 
+  // Format stat value based on type
+  const formatStatValue = (value: number, statType: string) => {
+    if (statType === 'FG%') {
+      return value.toFixed(1) + '%';
+    }
+    return Math.round(value).toString();
+  };
+
   return (
     <div className="space-y-8">
       {/* Key Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Leading Scorers Card */}
+        {/* Team Leaders Card */}
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-bold text-gray-900">Leading Scorers</h3>
-            <p className="text-xs text-gray-600 mt-1">Top points per team</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Team Leaders</h3>
+                <p className="text-xs text-gray-600 mt-1">Top performer per team</p>
+              </div>
+              <select
+                value={selectedStatType}
+                onChange={(e) => onStatTypeChange(e.target.value)}
+                className="text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md px-3 py-1.5 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors cursor-pointer"
+              >
+                {statTypes.map(stat => (
+                  <option key={stat.value} value={stat.value}>
+                    {stat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="p-6 space-y-4">
             {/* Away Team Leader */}
-            {leadingScorers.away[0] && (
+            {teamLeaders.away[0] && (
               <div
                 className="flex items-center justify-between p-3 rounded-lg"
                 style={{ backgroundColor: hexToRgba(awayTeam.color, 0.15) }}
               >
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  {leadingScorers.away[0].headshot ? (
+                  {teamLeaders.away[0].headshot ? (
                     <img
-                      src={leadingScorers.away[0].headshot}
-                      alt={leadingScorers.away[0].name}
+                      src={teamLeaders.away[0].headshot}
+                      alt={teamLeaders.away[0].name}
                       className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-white shadow-md"
                     />
                   ) : (
                     <img src={awayTeam.logo} alt={awayTeam.name} className="w-10 h-10 flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0 mr-4">
-                    <p className={`font-semibold text-gray-900 truncate ${getNameFontSize(leadingScorers.away[0].name)}`}>
-                      {leadingScorers.away[0].name}
+                    <p className={`font-semibold text-gray-900 truncate ${getNameFontSize(teamLeaders.away[0].name)}`}>
+                      {teamLeaders.away[0].name}
                     </p>
                     <p className="text-xs text-gray-500">{awayTeam.abbr}</p>
                   </div>
@@ -96,30 +136,30 @@ export default function OverviewTab({
                   className="text-3xl font-black flex-shrink-0"
                   style={{ color: ensureHexPrefix(awayTeam.color) || '#3B82F6' }}
                 >
-                  {leadingScorers.away[0].value}
+                  {formatStatValue(teamLeaders.away[0].value, selectedStatType)}
                 </span>
               </div>
             )}
 
             {/* Home Team Leader */}
-            {leadingScorers.home[0] && (
+            {teamLeaders.home[0] && (
               <div
                 className="flex items-center justify-between p-3 rounded-lg"
                 style={{ backgroundColor: hexToRgba(homeTeam.color, 0.15) }}
               >
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  {leadingScorers.home[0].headshot ? (
+                  {teamLeaders.home[0].headshot ? (
                     <img
-                      src={leadingScorers.home[0].headshot}
-                      alt={leadingScorers.home[0].name}
+                      src={teamLeaders.home[0].headshot}
+                      alt={teamLeaders.home[0].name}
                       className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-white shadow-md"
                     />
                   ) : (
                     <img src={homeTeam.logo} alt={homeTeam.name} className="w-10 h-10 flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0 mr-4">
-                    <p className={`font-semibold text-gray-900 truncate ${getNameFontSize(leadingScorers.home[0].name)}`}>
-                      {leadingScorers.home[0].name}
+                    <p className={`font-semibold text-gray-900 truncate ${getNameFontSize(teamLeaders.home[0].name)}`}>
+                      {teamLeaders.home[0].name}
                     </p>
                     <p className="text-xs text-gray-500">{homeTeam.abbr}</p>
                   </div>
@@ -128,7 +168,7 @@ export default function OverviewTab({
                   className="text-3xl font-black flex-shrink-0"
                   style={{ color: ensureHexPrefix(homeTeam.color) || '#EF4444' }}
                 >
-                  {leadingScorers.home[0].value}
+                  {formatStatValue(teamLeaders.home[0].value, selectedStatType)}
                 </span>
               </div>
             )}

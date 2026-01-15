@@ -20,6 +20,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
   const [activeTab, setActiveTab] = useState('overview');
   const [leadChanges, setLeadChanges] = useState(7); // Default placeholder
   const [showLeadChangesFilter, setShowLeadChangesFilter] = useState(false);
+  const [selectedStatType, setSelectedStatType] = useState('PTS');
 
   const awayWon = game.away_score > game.home_score;
   const homeWon = game.home_score > game.away_score;
@@ -97,25 +98,52 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
     }
   }, [game.event_id, game.is_completed]);
 
-  // Extract leading scorers
-  const extractLeadingScorers = () => {
+  // Extract team leaders by stat type
+  const extractTeamLeaders = (statType: string) => {
     let awayLeaders: any[] = [];
     let homeLeaders: any[] = [];
+
+    // Map stat types to ESPN labels and database fields
+    const statMapping: Record<string, { espnLabel: string; dbField: string }> = {
+      'PTS': { espnLabel: 'PTS', dbField: 'points' },
+      'REB': { espnLabel: 'REB', dbField: 'rebounds' },
+      'AST': { espnLabel: 'AST', dbField: 'assists' },
+      'STL': { espnLabel: 'STL', dbField: 'steals' },
+      'BLK': { espnLabel: 'BLK', dbField: 'blocks' },
+      'FG%': { espnLabel: 'FG%', dbField: 'field_goal_pct' },
+      '3PT': { espnLabel: '3PM', dbField: 'three_point_made' },
+    };
+
+    const mapping = statMapping[statType];
+    if (!mapping) return { away: awayLeaders, home: homeLeaders };
 
     if (game.source === 'espn' && game.players) {
       game.players.forEach((teamData: any) => {
         const allPlayers = teamData.statistics[0]?.athletes || [];
         const isHomeTeam = teamData.team.id === String(game.home_team_id);
-        const pointsIndex = teamData.statistics[0]?.labels?.indexOf('PTS') ?? -1;
+        const statIndex = teamData.statistics[0]?.labels?.indexOf(mapping.espnLabel) ?? -1;
 
-        if (pointsIndex !== -1) {
+        if (statIndex !== -1) {
           const leaders = allPlayers
-            .map((p: any) => ({
-              name: p.athlete?.displayName || '',
-              value: parseInt(p.stats?.[pointsIndex] || '0'),
-              headshot: p.athlete?.headshot?.href,
-              playerId: p.athlete?.id,
-            }))
+            .map((p: any) => {
+              let value = 0;
+              const statValue = p.stats?.[statIndex];
+
+              // Handle FG% specially
+              if (statType === 'FG%') {
+                value = parseFloat(statValue || '0');
+              } else {
+                value = parseInt(statValue || '0');
+              }
+
+              return {
+                name: p.athlete?.displayName || '',
+                value: value,
+                headshot: p.athlete?.headshot?.href,
+                playerId: p.athlete?.id,
+              };
+            })
+            .filter((p: any) => p.value > 0)
             .sort((a: any, b: any) => b.value - a.value)
             .slice(0, 1);
 
@@ -136,13 +164,28 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
 
       Object.entries(playersByTeam).forEach(([teamId, players]: [string, any]) => {
         const isHomeTeam = Number(teamId) === game.home_team_id;
+
         const leaders = players
-          .map((p: any) => ({
-            name: p.display_name || p.full_name,
-            value: p.points || 0,
-            headshot: p.headshot_url || p.photo_url,
-            playerId: p.player_id || p.id,
-          }))
+          .map((p: any) => {
+            let value = 0;
+
+            // Handle FG% calculation
+            if (statType === 'FG%') {
+              const made = p.field_goals_made || 0;
+              const attempted = p.field_goals_attempted || 0;
+              value = attempted > 0 ? (made / attempted) * 100 : 0;
+            } else {
+              value = p[mapping.dbField] || 0;
+            }
+
+            return {
+              name: p.display_name || p.full_name,
+              value: value,
+              headshot: p.headshot_url || p.photo_url,
+              playerId: p.player_id || p.id,
+            };
+          })
+          .filter((p: any) => p.value > 0)
           .sort((a: any, b: any) => b.value - a.value)
           .slice(0, 1);
 
@@ -203,7 +246,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
     }
   };
 
-  const leadingScorers = extractLeadingScorers();
+  const teamLeaders = extractTeamLeaders(selectedStatType);
   const shootingEfficiency = extractShootingEfficiency();
 
   return (
@@ -277,7 +320,9 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
               color: game.home_team_color,
               id: game.home_team_id,
             }}
-            leadingScorers={leadingScorers}
+            teamLeaders={teamLeaders}
+            selectedStatType={selectedStatType}
+            onStatTypeChange={setSelectedStatType}
             shootingEfficiency={shootingEfficiency}
             leadChanges={leadChanges}
             isCompleted={game.is_completed}
