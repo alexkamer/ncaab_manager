@@ -121,12 +121,37 @@ export default function BettingLines({
 
   if (loading) {
     return (
-      <div className="border border-gray-200">
-        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">Betting Lines</h2>
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden animate-pulse">
+        <div className="bg-gray-200 px-6 py-4 border-b border-gray-200">
+          <div className="h-6 bg-gray-300 rounded w-1/4 mb-1"></div>
+          <div className="h-4 bg-gray-300 rounded w-1/3"></div>
         </div>
-        <div className="p-6 text-center text-gray-500">
-          Loading betting lines...
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-4 py-3"><div className="h-4 bg-gray-300 rounded"></div></th>
+                <th className="px-4 py-3"><div className="h-4 bg-gray-300 rounded"></div></th>
+                <th className="px-4 py-3"><div className="h-4 bg-gray-300 rounded"></div></th>
+                <th className="px-4 py-3"><div className="h-4 bg-gray-300 rounded"></div></th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(2)].map((_, i) => (
+                <tr key={i} className="border-b border-gray-200">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+                  <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-12"></div></td>
+                  <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );

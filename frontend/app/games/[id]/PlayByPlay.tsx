@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import PlayByPlaySkeleton from "./components/PlayByPlaySkeleton";
 import { EnhancedPlay, FilterState, ViewMode, detectMomentumRuns, getUniquePlayers, getPlayTypeCounts, isClutchTime, isLeadChange } from "./types/playTypes";
 import FilterPanel from "./components/FilterPanel";
 import PlayGrid from "./components/PlayGrid";
@@ -213,9 +214,7 @@ export default function PlayByPlay({
       {expanded && (
         <>
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
+            <PlayByPlaySkeleton />
           ) : plays.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-500">
               <svg

@@ -730,7 +730,24 @@ async def get_game_detail(event_id: int):
             WHERE ps.event_id = ?
             ORDER BY ps.team_id, ps.minutes_played DESC
         """, (event_id,))
-        game_dict["player_stats"] = [dict_from_row(row) for row in cursor.fetchall()]
+        player_stats = [dict_from_row(row) for row in cursor.fetchall()]
+
+        # Add constructed headshot URLs for each player
+        for player in player_stats:
+            if player.get('athlete_id'):
+                player['headshot_url'] = f"https://a.espncdn.com/i/headshots/mens-college-basketball/players/full/{player['athlete_id']}.png"
+
+        game_dict["player_stats"] = player_stats
+
+        # Try to fetch ESPN data for player headshots if game is completed
+        if game_dict.get('is_completed'):
+            try:
+                espn_data = await fetch_box_score_from_espn(event_id)
+                if espn_data and espn_data.get('players'):
+                    game_dict['players'] = espn_data['players']
+            except Exception as e:
+                print(f"Could not fetch ESPN data for headshots: {e}")
+                pass
 
         # Get predictions if available
         cursor.execute("""
