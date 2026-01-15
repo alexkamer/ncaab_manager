@@ -61,41 +61,33 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
         const data = await response.json();
         const plays = data.plays || [];
 
-        // Count lead changes using the same logic as the play-by-play filter
+        // Optimized O(n) lead changes calculation using single-pass algorithm
         // IMPORTANT: Lead changes can ONLY happen on scoring plays
         let count = 0;
-        for (let i = 0; i < plays.length; i++) {
-          const currentPlay = plays[i];
+        let lastLeader: "home" | "away" | null = null; // Track the last team that had the lead
 
+        for (const play of plays) {
           // Lead changes can ONLY occur on scoring plays
-          if (!currentPlay.scoringPlay) continue;
+          if (!play.scoringPlay) continue;
 
-          const currLeader = currentPlay.homeScore > currentPlay.awayScore ? "home" :
-                             currentPlay.awayScore > currentPlay.homeScore ? "away" : "tied";
+          // Determine current leader
+          const currLeader = play.homeScore > play.awayScore ? "home" :
+                             play.awayScore > play.homeScore ? "away" : null;
 
-          // Current play must result in a team leading (not tied)
-          if (currLeader === "tied") continue;
+          // Skip tied games
+          if (currLeader === null) continue;
 
-          // Find the last play where a team had the lead (skip ties)
-          let isLeadChange = false;
-          for (let j = i - 1; j >= 0; j--) {
-            const prevPlay = plays[j];
-            const leader = prevPlay.homeScore > prevPlay.awayScore ? "home" :
-                          prevPlay.awayScore > prevPlay.homeScore ? "away" : "tied";
-
-            if (leader !== "tied") {
-              // This is the last time someone had the lead
-              isLeadChange = leader !== currLeader;
-              break;
-            }
+          // Check if this is a lead change
+          if (lastLeader === null) {
+            // First lead of the game
+            count++;
+          } else if (lastLeader !== currLeader) {
+            // Lead changed from one team to another
+            count++;
           }
 
-          // If no previous leader found (start of game), this is the first lead
-          if (i === 0 || plays.slice(0, i).every((p: any) => p.homeScore === p.awayScore)) {
-            isLeadChange = true;
-          }
-
-          if (isLeadChange) count++;
+          // Update last leader
+          lastLeader = currLeader;
         }
 
         setLeadChanges(count);

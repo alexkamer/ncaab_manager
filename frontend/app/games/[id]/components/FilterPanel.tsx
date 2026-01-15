@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { FilterState, PLAY_CATEGORY_LABELS } from "../types/playTypes";
 
 interface FilterPanelProps {
@@ -29,29 +29,34 @@ export default function FilterPanel({
     return `OT${period - 2}`;
   };
 
-  // Filtered players based on search
-  const filteredPlayers = players.filter(p =>
-    p.name.toLowerCase().includes(playerSearch.toLowerCase())
-  );
+  // Memoize filtered players based on search to avoid recomputing on every render
+  const filteredPlayers = useMemo(() => {
+    return players.filter(p =>
+      p.name.toLowerCase().includes(playerSearch.toLowerCase())
+    );
+  }, [players, playerSearch]);
 
-  // Play categories for filtering
-  const playCategories = [
-    { value: "scoring", label: "Scoring", count: playTypeCounts.scoring || 0 },
-    { value: "rebounding", label: "Rebounds", count: playTypeCounts.rebounding || 0 },
-    { value: "turnovers", label: "Turnovers", count: playTypeCounts.turnovers || 0 },
-    { value: "fouls", label: "Fouls", count: playTypeCounts.fouls || 0 },
-    { value: "defensive", label: "Defensive", count: playTypeCounts.defensive || 0 }
-  ];
+  // Memoize play categories to avoid recreating array on every render
+  const playCategories = useMemo(() => {
+    return [
+      { value: "scoring", label: "Scoring", count: playTypeCounts.scoring || 0 },
+      { value: "rebounding", label: "Rebounds", count: playTypeCounts.rebounding || 0 },
+      { value: "turnovers", label: "Turnovers", count: playTypeCounts.turnovers || 0 },
+      { value: "fouls", label: "Fouls", count: playTypeCounts.fouls || 0 },
+      { value: "defensive", label: "Defensive", count: playTypeCounts.defensive || 0 }
+    ];
+  }, [playTypeCounts]);
 
-  // Count active filters
-  const activeFilterCount =
-    (filters.selectedPeriod !== "all" ? 1 : 0) +
-    filters.selectedPlayTypes.length +
-    filters.selectedPlayers.length +
-    (filters.showScoringOnly ? 1 : 0) +
-    (filters.clutchTimeOnly ? 1 : 0) +
-    (filters.momentumPlaysOnly ? 1 : 0) +
-    (filters.leadChangesOnly ? 1 : 0);
+  // Memoize active filter count to avoid recalculation on every render
+  const activeFilterCount = useMemo(() => {
+    return (filters.selectedPeriod !== "all" ? 1 : 0) +
+      filters.selectedPlayTypes.length +
+      filters.selectedPlayers.length +
+      (filters.showScoringOnly ? 1 : 0) +
+      (filters.clutchTimeOnly ? 1 : 0) +
+      (filters.momentumPlaysOnly ? 1 : 0) +
+      (filters.leadChangesOnly ? 1 : 0);
+  }, [filters]);
 
   const clearAllFilters = () => {
     onFilterChange({

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { EnhancedPlay, isLeadChange, isTied } from "../types/playTypes";
 import PlayCard from "./PlayCard";
 
@@ -30,6 +31,11 @@ export default function PlayGrid({
   awayTeamAbbr,
   onPlayClick
 }: PlayGridProps) {
+  // Memoize the click handler to prevent breaking PlayCard's memo optimization
+  const handlePlayClick = useCallback((playId: string) => {
+    onPlayClick?.(playId);
+  }, [onPlayClick]);
+
   if (plays.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-gray-500">
@@ -75,7 +81,7 @@ export default function PlayGrid({
             awayTeamLogo={awayTeamLogo}
             homeTeamAbbr={homeTeamAbbr}
             awayTeamAbbr={awayTeamAbbr}
-            onClick={() => onPlayClick?.(play.id)}
+            onClick={() => handlePlayClick(play.id)}
           />
         );
       })}
