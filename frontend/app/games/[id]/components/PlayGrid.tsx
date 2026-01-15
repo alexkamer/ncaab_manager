@@ -1,6 +1,6 @@
 "use client";
 
-import { EnhancedPlay, isLeadChange } from "../types/playTypes";
+import { EnhancedPlay, isLeadChange, isTied } from "../types/playTypes";
 import PlayCard from "./PlayCard";
 
 interface PlayGridProps {
@@ -57,6 +57,7 @@ export default function PlayGrid({
       {plays.map((play, index) => {
         const prevPlay = index > 0 ? plays[index - 1] : undefined;
         const leadChange = prevPlay ? isLeadChange(play, prevPlay) : false;
+        const tied = prevPlay ? isTied(play, prevPlay) : false;
         const momentumPlay = momentumPlayIds.has(play.id);
 
         return (
@@ -64,6 +65,7 @@ export default function PlayGrid({
             key={play.id}
             play={play}
             isLeadChange={leadChange}
+            isTied={tied}
             isMomentumPlay={momentumPlay}
             homeTeamColor={homeTeamColor}
             awayTeamColor={awayTeamColor}

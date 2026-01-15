@@ -6,6 +6,7 @@ import { EnhancedPlay } from "../types/playTypes";
 interface PlayCardProps {
   play: EnhancedPlay;
   isLeadChange: boolean;
+  isTied: boolean;
   isMomentumPlay: boolean;
   homeTeamColor: string;
   awayTeamColor: string;
@@ -21,6 +22,7 @@ interface PlayCardProps {
 function PlayCard({
   play,
   isLeadChange,
+  isTied,
   isMomentumPlay,
   homeTeamColor,
   awayTeamColor,
@@ -107,8 +109,15 @@ function PlayCard({
           </span>
         )}
 
+        {/* Tie indicator */}
+        {isTied && (
+          <span className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded">
+            TIE
+          </span>
+        )}
+
         {/* Momentum indicator */}
-        {isMomentumPlay && !isLeadChange && (
+        {isMomentumPlay && !isLeadChange && !isTied && (
           <span className="text-orange-500 text-lg">🔥</span>
         )}
 

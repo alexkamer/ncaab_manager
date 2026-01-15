@@ -97,6 +97,16 @@ export function isLeadChange(currentPlay: EnhancedPlay, previousPlay: EnhancedPl
   return prevLeader !== currLeader && currLeader !== "tied";
 }
 
+// Helper function to detect when score becomes tied
+export function isTied(currentPlay: EnhancedPlay, previousPlay: EnhancedPlay): boolean {
+  const prevLeader = previousPlay.homeScore > previousPlay.awayScore ? "home" :
+                     previousPlay.awayScore > previousPlay.homeScore ? "away" : "tied";
+  const currLeader = currentPlay.homeScore > currentPlay.awayScore ? "home" :
+                     currentPlay.awayScore > currentPlay.homeScore ? "away" : "tied";
+
+  return prevLeader !== "tied" && currLeader === "tied";
+}
+
 // Helper function to check if play is in clutch time
 export function isClutchTime(play: EnhancedPlay): boolean {
   // Last 5 minutes (300 seconds) and score within 5 points
