@@ -55,27 +55,11 @@ export default function GameFlow({
   const lastCallTime = useRef<number>(0);
   const THROTTLE_MS = 16; // ~60fps
 
-  // No longer fetching - data comes from parent to eliminate duplicate API calls
-
-  if (!isCompleted || plays.length === 0) {
-    return null;
-  }
-
   // Filter to only scoring plays for all calculations and visualization
   const scoringPlays = plays.filter(p => p.scoringPlay);
 
-  if (scoringPlays.length === 0) {
-    return null;
-  }
-
-  // Calculate max score and add padding to prevent cutoff
-  const maxScore = Math.max(
-    ...scoringPlays.map(p => Math.max(p.awayScore, p.homeScore)),
-    1 // Minimum value to prevent division by zero
-  );
-
-  // Add 10% padding to the top so lines don't get cut off
-  const yAxisMax = Math.ceil(maxScore * 1.1);
+  // Calculate total game time for X-axis scaling
+  const totalGameTime = scoringPlays.length > 0 ? getGameTimeInSeconds(scoringPlays[scoringPlays.length - 1]) : 2400;
 
   // Helper function to convert game time to seconds elapsed
   const getGameTimeInSeconds = (play: Play): number => {
@@ -93,6 +77,74 @@ export default function GameFlow({
     // Calculate elapsed time: (period-1) * periodLength + (periodLength - remaining)
     return (period - 1) * periodLength + (periodLength - clockSeconds);
   };
+
+  // Throttled mouse move handler to reduce expensive calculations
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const now = Date.now();
+
+    // Throttle: only execute if enough time has passed
+    if (now - lastCallTime.current < THROTTLE_MS) {
+      return;
+    }
+    lastCallTime.current = now;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    // Account for the Y-axis label area (40px wide, which is 2.5rem = 10 * 4px)
+    const chartStartX = 40; // This matches the "left-10" class which is 2.5rem = 40px
+    const chartWidth = rect.width - chartStartX;
+    const adjustedX = x - chartStartX;
+
+    // Only calculate if mouse is within the chart area
+    if (adjustedX >= 0 && adjustedX <= chartWidth) {
+      const percentage = adjustedX / chartWidth;
+      const targetTime = percentage * totalGameTime;
+
+      // Find the closest play by game time
+      let closestPlay = scoringPlays[0];
+      let closestDiff = Math.abs(getGameTimeInSeconds(scoringPlays[0]) - targetTime);
+
+      for (const play of scoringPlays) {
+        const playTime = getGameTimeInSeconds(play);
+        const diff = Math.abs(playTime - targetTime);
+        if (diff < closestDiff) {
+          closestDiff = diff;
+          closestPlay = play;
+        }
+      }
+
+      setHoveredPlay(closestPlay);
+      setMouseX(x);
+    } else {
+      setHoveredPlay(null);
+      setMouseX(null);
+    }
+  }, [scoringPlays, totalGameTime]);
+
+  const handleMouseLeave = () => {
+    setHoveredPlay(null);
+    setMouseX(null);
+  };
+
+  // No longer fetching - data comes from parent to eliminate duplicate API calls
+  // Early return AFTER all hooks are called
+  if (!isCompleted || plays.length === 0) {
+    return null;
+  }
+
+  if (scoringPlays.length === 0) {
+    return null;
+  }
+
+  // Calculate max score and add padding to prevent cutoff
+  const maxScore = Math.max(
+    ...scoringPlays.map(p => Math.max(p.awayScore, p.homeScore)),
+    1 // Minimum value to prevent division by zero
+  );
+
+  // Add 10% padding to the top so lines don't get cut off
+  const yAxisMax = Math.ceil(maxScore * 1.1);
 
   // Calculate scoring runs using basketball logic:
   // Track which team has the run and end when opponent scores twice
@@ -180,58 +232,6 @@ export default function GameFlow({
 
   // Sort runs chronologically
   const topRuns = runs.sort((a, b) => a.startPlay - b.startPlay);
-
-  // Calculate total game time for X-axis scaling
-  const totalGameTime = scoringPlays.length > 0 ? getGameTimeInSeconds(scoringPlays[scoringPlays.length - 1]) : 2400;
-
-  // Throttled mouse move handler to reduce expensive calculations
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const now = Date.now();
-
-    // Throttle: only execute if enough time has passed
-    if (now - lastCallTime.current < THROTTLE_MS) {
-      return;
-    }
-    lastCallTime.current = now;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-
-    // Account for the Y-axis label area (40px wide, which is 2.5rem = 10 * 4px)
-    const chartStartX = 40; // This matches the "left-10" class which is 2.5rem = 40px
-    const chartWidth = rect.width - chartStartX;
-    const adjustedX = x - chartStartX;
-
-    // Only calculate if mouse is within the chart area
-    if (adjustedX >= 0 && adjustedX <= chartWidth) {
-      const percentage = adjustedX / chartWidth;
-      const targetTime = percentage * totalGameTime;
-
-      // Find the closest play by game time
-      let closestPlay = scoringPlays[0];
-      let closestDiff = Math.abs(getGameTimeInSeconds(scoringPlays[0]) - targetTime);
-
-      for (const play of scoringPlays) {
-        const playTime = getGameTimeInSeconds(play);
-        const diff = Math.abs(playTime - targetTime);
-        if (diff < closestDiff) {
-          closestDiff = diff;
-          closestPlay = play;
-        }
-      }
-
-      setHoveredPlay(closestPlay);
-      setMouseX(x);
-    } else {
-      setHoveredPlay(null);
-      setMouseX(null);
-    }
-  }, [scoringPlays, totalGameTime]);
-
-  const handleMouseLeave = () => {
-    setHoveredPlay(null);
-    setMouseX(null);
-  };
 
   return (
     <div className="rounded-lg shadow-sm overflow-hidden border border-gray-200">
