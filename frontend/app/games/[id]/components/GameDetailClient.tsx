@@ -32,6 +32,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
   const [leadChanges, setLeadChanges] = useState(7); // Default placeholder
   const [showLeadChangesFilter, setShowLeadChangesFilter] = useState(false);
   const [selectedStatType, setSelectedStatType] = useState('PTS');
+  const [plays, setPlays] = useState<any[]>([]); // Centralized play-by-play data
 
   const awayWon = game.away_score > game.home_score;
   const homeWon = game.home_score > game.away_score;
@@ -50,54 +51,49 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
     setActiveTab(tab);
   };
 
-  // Calculate actual lead changes from play-by-play data
+  // Fetch play-by-play data once and calculate lead changes from it
+  // This data is shared with GameFlow and PlayByPlay to eliminate duplicate API calls
   useEffect(() => {
-    const calculateLeadChanges = async () => {
+    const fetchPlayByPlayData = async () => {
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         const response = await fetch(`${API_BASE}/api/games/${game.event_id}/playbyplay`);
         if (!response.ok) return;
 
         const data = await response.json();
-        const plays = data.plays || [];
+        const fetchedPlays = data.plays || [];
+        setPlays(fetchedPlays);
 
-        // Optimized O(n) lead changes calculation using single-pass algorithm
+        // Calculate lead changes using optimized O(n) algorithm
         // IMPORTANT: Lead changes can ONLY happen on scoring plays
         let count = 0;
-        let lastLeader: "home" | "away" | null = null; // Track the last team that had the lead
+        let lastLeader: "home" | "away" | null = null;
 
-        for (const play of plays) {
-          // Lead changes can ONLY occur on scoring plays
+        for (const play of fetchedPlays) {
           if (!play.scoringPlay) continue;
 
-          // Determine current leader
           const currLeader = play.homeScore > play.awayScore ? "home" :
                              play.awayScore > play.homeScore ? "away" : null;
 
-          // Skip tied games
           if (currLeader === null) continue;
 
-          // Check if this is a lead change
           if (lastLeader === null) {
-            // First lead of the game
             count++;
           } else if (lastLeader !== currLeader) {
-            // Lead changed from one team to another
             count++;
           }
 
-          // Update last leader
           lastLeader = currLeader;
         }
 
         setLeadChanges(count);
       } catch (error) {
-        console.error('Error calculating lead changes:', error);
+        console.error('Error fetching play-by-play data:', error);
       }
     };
 
     if (game.is_completed && game.event_id) {
-      calculateLeadChanges();
+      fetchPlayByPlayData();
     }
   }, [game.event_id, game.is_completed]);
 
@@ -326,6 +322,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
             leadChanges={leadChanges}
             isCompleted={game.is_completed}
             onViewLeadChanges={handleViewLeadChanges}
+            plays={plays}
           />
         )}
 
@@ -343,6 +340,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
             homeTeamColor={game.home_team_color}
             homeTeamLogo={homeTeamLogo}
             initialFilterLeadChanges={showLeadChangesFilter}
+            plays={plays}
           />
         )}
 

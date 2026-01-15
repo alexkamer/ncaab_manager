@@ -24,6 +24,7 @@ interface PlayByPlayProps {
   homeTeamLogo: string;
   onPlayClick?: (playId: string) => void;
   initialFilterLeadChanges?: boolean;
+  plays?: any[]; // Play-by-play data passed from parent
 }
 
 export default function PlayByPlay({
@@ -39,7 +40,8 @@ export default function PlayByPlay({
   homeTeamColor,
   homeTeamLogo,
   onPlayClick,
-  initialFilterLeadChanges = false
+  initialFilterLeadChanges = false,
+  plays: initialPlays = []
 }: PlayByPlayProps) {
   const [plays, setPlays] = useState<EnhancedPlay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,23 +60,28 @@ export default function PlayByPlay({
     leadChangesOnly: initialFilterLeadChanges
   });
 
-  // Fetch play-by-play data
+  // Use plays from parent if provided, otherwise fetch (for backwards compatibility)
   useEffect(() => {
-    async function fetchPlays() {
-      try {
-        const response = await fetch(`${API_BASE}/api/games/${eventId}/playbyplay`);
-        const data = await response.json();
-        if (data.plays) {
-          setPlays(data.plays);
+    if (initialPlays && initialPlays.length > 0) {
+      setPlays(initialPlays);
+      setLoading(false);
+    } else {
+      async function fetchPlays() {
+        try {
+          const response = await fetch(`${API_BASE}/api/games/${eventId}/playbyplay`);
+          const data = await response.json();
+          if (data.plays) {
+            setPlays(data.plays);
+          }
+        } catch (error) {
+          console.error("Error fetching plays:", error);
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error fetching plays:", error);
-      } finally {
-        setLoading(false);
       }
+      fetchPlays();
     }
-    fetchPlays();
-  }, [eventId]);
+  }, [eventId, initialPlays]);
 
   // Get unique periods
   const periods = useMemo(() => {

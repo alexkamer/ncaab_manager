@@ -39,6 +39,7 @@ interface OverviewTabProps {
   leadChanges: number;
   isCompleted?: boolean;
   onViewLeadChanges?: () => void;
+  plays?: any[]; // Play-by-play data passed from parent
 }
 
 // Stat type options (moved outside component for performance)
@@ -63,6 +64,7 @@ export default function OverviewTab({
   leadChanges,
   isCompleted,
   onViewLeadChanges,
+  plays = [],
 }: OverviewTabProps) {
   const currentStatType = STAT_TYPES.find(s => s.value === selectedStatType) || STAT_TYPES[0];
 
@@ -276,6 +278,7 @@ export default function OverviewTab({
         homeTeamId={homeTeam.id}
         homeTeamColor={homeTeam.color}
         isCompleted={isCompleted}
+        plays={plays}
       />
 
       {/* Line Score - if we want to include it here */}

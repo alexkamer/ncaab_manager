@@ -31,6 +31,7 @@ interface GameFlowProps {
   homeTeamId: number;
   homeTeamColor: string;
   isCompleted: boolean;
+  plays?: any[]; // Play-by-play data passed from parent
 }
 
 export default function GameFlow({
@@ -43,10 +44,9 @@ export default function GameFlow({
   homeTeamAbbr,
   homeTeamId,
   homeTeamColor,
-  isCompleted
+  isCompleted,
+  plays = []
 }: GameFlowProps) {
-  const [plays, setPlays] = useState<Play[]>([]);
-  const [loading, setLoading] = useState(true);
   const [hoveredPlay, setHoveredPlay] = useState<Play | null>(null);
   const [mouseX, setMouseX] = useState<number | null>(null);
   const [runsExpanded, setRunsExpanded] = useState(false);
@@ -55,30 +55,9 @@ export default function GameFlow({
   const lastCallTime = useRef<number>(0);
   const THROTTLE_MS = 16; // ~60fps
 
-  useEffect(() => {
-    async function fetchPlayByPlay() {
-      try {
-        const response = await fetch(`${API_BASE}/api/games/${eventId}/playbyplay`);
-        const data = await response.json();
+  // No longer fetching - data comes from parent to eliminate duplicate API calls
 
-        if (data.plays && data.plays.length > 0) {
-          setPlays(data.plays);
-        }
-      } catch (error) {
-        console.error('Error fetching play-by-play:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (isCompleted) {
-      fetchPlayByPlay();
-    } else {
-      setLoading(false);
-    }
-  }, [eventId, isCompleted]);
-
-  if (!isCompleted || loading) {
+  if (!isCompleted || plays.length === 0) {
     return null;
   }
 
