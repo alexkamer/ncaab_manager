@@ -718,6 +718,20 @@ async def get_game_detail(event_id: int):
         """, (event_id,))
         game_dict["team_stats"] = [dict_from_row(row) for row in cursor.fetchall()]
 
+        # Calculate bench points from player statistics
+        cursor.execute("""
+            SELECT team_id, SUM(points) as bench_points
+            FROM player_statistics
+            WHERE event_id = ? AND is_starter = 0
+            GROUP BY team_id
+        """, (event_id,))
+        bench_points_data = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Add bench points to team stats
+        for team_stat in game_dict["team_stats"]:
+            team_id = team_stat.get('team_id')
+            team_stat['bench_points'] = bench_points_data.get(team_id, 0)
+
         # Get player statistics
         cursor.execute("""
             SELECT
