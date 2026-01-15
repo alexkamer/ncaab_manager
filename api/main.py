@@ -11,6 +11,7 @@ from datetime import datetime
 from contextlib import contextmanager
 import httpx
 import asyncio
+import json
 
 app = FastAPI(
     title="NCAA Basketball API",
@@ -750,6 +751,104 @@ async def get_game_detail(event_id: int):
             game_dict["odds"] = dict_from_row(odds)
 
         return game_dict
+
+
+@app.get("/api/games/{event_id}/odds")
+async def get_game_odds_live(event_id: int):
+    """Fetch live betting odds from ESPN API"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Fetch odds from ESPN API
+            odds_url = f"http://sports.core.api.espn.com/v2/sports/basketball/leagues/mens-college-basketball/events/{event_id}/competitions/{event_id}/odds"
+            response = await client.get(odds_url)
+
+            if response.status_code != 200:
+                return {"odds": None}
+
+            odds_data = response.json()
+
+            # Check if odds exist
+            if not odds_data.get("items"):
+                return {"odds": None}
+
+            # Get the first odds provider (usually DraftKings)
+            odds_ref = odds_data["items"][0].get("$ref")
+            if not odds_ref:
+                return {"odds": None}
+
+            # Fetch detailed odds
+            odds_response = await client.get(odds_ref)
+            if odds_response.status_code != 200:
+                return {"odds": None}
+
+            detailed_odds = odds_response.json()
+
+            # Parse odds data
+            parsed_odds = {
+                "provider_name": detailed_odds.get("provider", {}).get("name"),
+                "spread": None,
+                "over_under": None,
+                "away_is_favorite": None,
+                "home_is_favorite": None,
+                "away_moneyline": None,
+                "home_moneyline": None,
+                "away_spread_odds": None,
+                "home_spread_odds": None,
+                "over_odds": None,
+                "under_odds": None
+            }
+
+            # Parse spread
+            if detailed_odds.get("spread"):
+                parsed_odds["spread"] = abs(float(detailed_odds["spread"]))
+
+            # Parse over/under
+            if detailed_odds.get("overUnder"):
+                parsed_odds["over_under"] = float(detailed_odds["overUnder"])
+
+            # Parse details to determine favorite
+            details = detailed_odds.get("details", "")
+            if details:
+                # Details format: "HOU -11.5" or "TEAM +X"
+                if "-" in details:
+                    # Team listed is favorite
+                    team_abbr = details.split("-")[0].strip()
+                    # Check if it's away or home (we'll need to infer from competition data)
+                    parsed_odds["away_is_favorite"] = True  # Simplified - would need competition data
+                    parsed_odds["home_is_favorite"] = False
+                elif "+" in details:
+                    parsed_odds["away_is_favorite"] = False
+                    parsed_odds["home_is_favorite"] = True
+
+            # Parse moneylines and spread odds from awayTeamOdds/homeTeamOdds
+            away_odds = detailed_odds.get("awayTeamOdds", {})
+            home_odds = detailed_odds.get("homeTeamOdds", {})
+
+            if away_odds:
+                parsed_odds["away_moneyline"] = away_odds.get("moneyLine")
+                parsed_odds["away_spread_odds"] = away_odds.get("spreadOdds")
+                if away_odds.get("favorite"):
+                    parsed_odds["away_is_favorite"] = True
+                    parsed_odds["home_is_favorite"] = False
+
+            if home_odds:
+                parsed_odds["home_moneyline"] = home_odds.get("moneyLine")
+                parsed_odds["home_spread_odds"] = home_odds.get("spreadOdds")
+                if home_odds.get("favorite"):
+                    parsed_odds["home_is_favorite"] = True
+                    parsed_odds["away_is_favorite"] = False
+
+            # Parse over/under odds
+            if detailed_odds.get("overOdds"):
+                parsed_odds["over_odds"] = int(detailed_odds["overOdds"])
+            if detailed_odds.get("underOdds"):
+                parsed_odds["under_odds"] = int(detailed_odds["underOdds"])
+
+            return {"odds": parsed_odds}
+
+    except Exception as e:
+        print(f"Error fetching odds for event {event_id}: {e}")
+        return {"odds": None}
 
 
 @app.get("/api/games/{event_id}/preview")

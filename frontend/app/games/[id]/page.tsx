@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BettingLines from "./BettingLines";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -610,170 +611,20 @@ export default async function GameDetailPage({
         </div>
       )}
 
-      {/* Comprehensive Betting Odds */}
-      {game.odds && (
-        <div className="border border-gray-200">
-          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900">Betting Lines</h2>
-            {game.odds.provider_name && (
-              <p className="text-xs text-gray-500 mt-1">Source: {game.odds.provider_name}</p>
-            )}
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Spread */}
-              {game.odds.spread !== undefined && game.odds.spread !== null && (
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-2 border-b border-gray-200">
-                    Point Spread
-                  </div>
-                  <div className="space-y-3">
-                    {/* Current/Closing Spread */}
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="text-xs text-gray-600 mb-1">Current Line</div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-gray-700">{game.away_team_abbr}</div>
-                          <div className="text-2xl font-bold text-green-800">
-                            {game.odds.away_is_favorite ? '-' : '+'}{game.odds.spread}
-                          </div>
-                          {game.odds.away_spread_odds && (
-                            <div className="text-xs text-gray-500">({game.odds.away_spread_odds > 0 ? '+' : ''}{game.odds.away_spread_odds})</div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-700">{game.home_team_abbr}</div>
-                          <div className="text-2xl font-bold text-green-800">
-                            {game.odds.home_is_favorite ? '-' : '+'}{game.odds.spread}
-                          </div>
-                          {game.odds.home_spread_odds && (
-                            <div className="text-xs text-gray-500">({game.odds.home_spread_odds > 0 ? '+' : ''}{game.odds.home_spread_odds})</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+      {/* Dynamic Betting Odds from ESPN API */}
+      <BettingLines
+        eventId={game.event_id}
+        awayTeamName={game.away_team_name}
+        awayTeamAbbr={game.away_team_abbr}
+        awayTeamId={game.away_team_id}
+        homeTeamName={game.home_team_name}
+        homeTeamAbbr={game.home_team_abbr}
+        homeTeamId={game.home_team_id}
+        isCompleted={game.is_completed}
+        awayScore={game.away_score}
+        homeScore={game.home_score}
+      />
 
-                    {/* Opening Spread */}
-                    {(game.odds.away_open_spread || game.odds.home_open_spread) && (
-                      <div className="text-xs text-gray-500">
-                        <div className="flex justify-between">
-                          <span>Opening: {game.away_team_abbr} {game.odds.away_open_spread && ((game.odds.away_is_favorite ? '-' : '+') + game.odds.away_open_spread)}</span>
-                          <span>{game.home_team_abbr} {game.odds.home_open_spread && ((game.odds.home_is_favorite ? '-' : '+') + game.odds.home_open_spread)}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Post-Game Result */}
-                    {game.is_completed && game.odds.spread_winner !== undefined && (
-                      <div className="text-xs">
-                        {game.odds.spread_winner ? (
-                          <span className="text-green-600 font-semibold">✓ Cover</span>
-                        ) : (
-                          <span className="text-red-600 font-semibold">✗ No Cover</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Moneyline */}
-              {(game.odds.home_moneyline || game.odds.away_moneyline) && (
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-2 border-b border-gray-200">
-                    Moneyline
-                  </div>
-                  <div className="space-y-2">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="text-sm font-medium text-gray-700 mb-1">{game.away_team_abbr}</div>
-                          <div className="text-2xl font-bold text-blue-800">
-                            {game.odds.away_moneyline && (game.odds.away_moneyline > 0 ? '+' : '')}{game.odds.away_moneyline}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-700 mb-1">{game.home_team_abbr}</div>
-                          <div className="text-2xl font-bold text-blue-800">
-                            {game.odds.home_moneyline && (game.odds.home_moneyline > 0 ? '+' : '')}{game.odds.home_moneyline}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Post-Game Result */}
-                    {game.is_completed && game.odds.moneyline_winner !== undefined && (
-                      <div className="text-xs text-center">
-                        <span className="text-gray-600">Winner: </span>
-                        <span className="font-semibold text-gray-900">
-                          {game.odds.moneyline_winner ? game.away_team_abbr : game.home_team_abbr}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Over/Under */}
-              {game.odds.over_under && (
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-2 border-b border-gray-200">
-                    Total (Over/Under)
-                  </div>
-                  <div className="space-y-3">
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <div className="text-xs text-gray-600 mb-1">Current Total</div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-purple-800 mb-2">
-                          {game.odds.over_under}
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-600">
-                          <div>
-                            O: {game.odds.over_odds && ((game.odds.over_odds > 0 ? '+' : '') + game.odds.over_odds)}
-                          </div>
-                          <div>
-                            U: {game.odds.under_odds && ((game.odds.under_odds > 0 ? '+' : '') + game.odds.under_odds)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Opening/Closing Total */}
-                    {(game.odds.open_total || game.odds.close_total) && (
-                      <div className="text-xs text-gray-500 space-y-1">
-                        {game.odds.open_total && (
-                          <div>Opening: {game.odds.open_total}</div>
-                        )}
-                        {game.odds.close_total && game.odds.close_total !== game.odds.over_under && (
-                          <div>Closing: {game.odds.close_total}</div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Post-Game Result */}
-                    {game.is_completed && game.odds.over_under_result && (
-                      <div className="text-center">
-                        <div className="text-xs text-gray-600 mb-1">
-                          Total Score: {game.home_score + game.away_score}
-                        </div>
-                        <div className="text-sm font-semibold">
-                          {game.odds.over_under_result === 'over' ? (
-                            <span className="text-green-600">✓ Over</span>
-                          ) : game.odds.over_under_result === 'under' ? (
-                            <span className="text-red-600">✓ Under</span>
-                          ) : (
-                            <span className="text-gray-600">Push</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Team Leaders */}
       {game.is_completed && (
