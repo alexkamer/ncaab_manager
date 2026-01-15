@@ -1,35 +1,26 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from "react";
+import { EnhancedPlay, FilterState, ViewMode, detectMomentumRuns, getUniquePlayers, getPlayTypeCounts, isClutchTime, isLeadChange } from "./types/playTypes";
+import FilterPanel from "./components/FilterPanel";
+import PlayGrid from "./components/PlayGrid";
+import ShotChart from "./components/ShotChart";
+import PlayDetailsModal from "./components/PlayDetailsModal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-interface Play {
-  id: string;
-  text: string;
-  shortText: string;
-  awayScore: number;
-  homeScore: number;
-  period: number;
-  periodDisplay: string;
-  clock: string;
-  clockValue: number;
-  scoreValue: number;
-  scoringPlay: boolean;
-  team: string | null;
-  homeWinPercentage?: number;
-}
 
 interface PlayByPlayProps {
   eventId: number;
   awayTeamName: string;
   awayTeamAbbr: string;
-  awayTeamId: number;
-  awayTeamColor: string;
+  awayTeamId?: number;
+  awayTeamColor?: string;
+  awayTeamLogo: string;
   homeTeamName: string;
   homeTeamAbbr: string;
-  homeTeamId: number;
-  homeTeamColor: string;
+  homeTeamId?: number;
+  homeTeamColor?: string;
+  homeTeamLogo: string;
   onPlayClick?: (playId: string) => void;
 }
 
@@ -39,17 +30,30 @@ export default function PlayByPlay({
   awayTeamAbbr,
   awayTeamId,
   awayTeamColor,
+  awayTeamLogo,
   homeTeamName,
   homeTeamAbbr,
   homeTeamId,
   homeTeamColor,
+  homeTeamLogo,
   onPlayClick
 }: PlayByPlayProps) {
-  const [plays, setPlays] = useState<Play[]>([]);
+  const [plays, setPlays] = useState<EnhancedPlay[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<number | 'all'>('all');
-  const [showScoringOnly, setShowScoringOnly] = useState(false);
+  const [expanded, setExpanded] = useState(true); // Start expanded for new design
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [selectedPlayId, setSelectedPlayId] = useState<string | null>(null);
+
+  // Filter state
+  const [filters, setFilters] = useState<FilterState>({
+    selectedPeriod: "all",
+    selectedPlayTypes: [],
+    selectedPlayers: [],
+    showScoringOnly: false,
+    clutchTimeOnly: false,
+    momentumPlaysOnly: false,
+    leadChangesOnly: false
+  });
 
   // Fetch play-by-play data
   useEffect(() => {
@@ -61,7 +65,7 @@ export default function PlayByPlay({
           setPlays(data.plays);
         }
       } catch (error) {
-        console.error('Error fetching plays:', error);
+        console.error("Error fetching plays:", error);
       } finally {
         setLoading(false);
       }
@@ -70,43 +74,132 @@ export default function PlayByPlay({
   }, [eventId]);
 
   // Get unique periods
-  const periods = Array.from(new Set(plays.map(p => p.period))).sort();
+  const periods = useMemo(() => {
+    return Array.from(new Set(plays.map(p => p.period))).sort();
+  }, [plays]);
 
-  // Filter plays based on selected period and scoring filter
-  const filteredPlays = plays.filter(play => {
-    if (selectedPeriod !== 'all' && play.period !== selectedPeriod) {
-      return false;
-    }
-    if (showScoringOnly && !play.scoringPlay) {
-      return false;
-    }
-    return true;
-  });
+  // Detect momentum runs
+  const momentumPlayIds = useMemo(() => {
+    return detectMomentumRuns(plays);
+  }, [plays]);
 
-  // Group plays by period for display
-  const playsByPeriod: Record<number, Play[]> = {};
-  filteredPlays.forEach(play => {
-    if (!playsByPeriod[play.period]) {
-      playsByPeriod[play.period] = [];
+  // Detect lead changes
+  const leadChangePlayIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (let i = 1; i < plays.length; i++) {
+      if (isLeadChange(plays[i], plays[i - 1])) {
+        ids.add(plays[i].id);
+      }
     }
-    playsByPeriod[play.period].push(play);
-  });
+    return ids;
+  }, [plays]);
+
+  // Get unique players
+  const players = useMemo(() => {
+    return getUniquePlayers(plays);
+  }, [plays]);
+
+  // Get play type counts
+  const playTypeCounts = useMemo(() => {
+    return getPlayTypeCounts(plays);
+  }, [plays]);
+
+  // Filter plays based on all filter criteria
+  const filteredPlays = useMemo(() => {
+    return plays.filter(play => {
+      // Period filter
+      if (filters.selectedPeriod !== "all" && play.period !== filters.selectedPeriod) {
+        return false;
+      }
+
+      // Play type filter (by category)
+      if (filters.selectedPlayTypes.length > 0 && !filters.selectedPlayTypes.includes(play.playCategory)) {
+        return false;
+      }
+
+      // Player filter
+      if (filters.selectedPlayers.length > 0) {
+        const playInvolvesSelectedPlayer =
+          filters.selectedPlayers.includes(play.playerId || "") ||
+          filters.selectedPlayers.includes(play.assistPlayerId || "");
+        if (!playInvolvesSelectedPlayer) {
+          return false;
+        }
+      }
+
+      // Scoring plays only
+      if (filters.showScoringOnly && !play.scoringPlay) {
+        return false;
+      }
+
+      // Clutch time only
+      if (filters.clutchTimeOnly && !isClutchTime(play)) {
+        return false;
+      }
+
+      // Momentum plays only
+      if (filters.momentumPlaysOnly && !momentumPlayIds.has(play.id)) {
+        return false;
+      }
+
+      // Lead changes only
+      if (filters.leadChangesOnly && !leadChangePlayIds.has(play.id)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [plays, filters, momentumPlayIds, leadChangePlayIds]);
+
+  // Get selected play for modal
+  const selectedPlay = selectedPlayId ? plays.find(p => p.id === selectedPlayId) : null;
+
+  // Get context plays for modal (prev 3 and next 3)
+  const getContextPlays = (playId: string) => {
+    const index = plays.findIndex(p => p.id === playId);
+    if (index === -1) return { prev: [], next: [] };
+
+    const prev = plays.slice(Math.max(0, index - 3), index).reverse();
+    const next = plays.slice(index + 1, Math.min(plays.length, index + 4));
+
+    return { prev, next };
+  };
+
+  const contextPlays = selectedPlayId ? getContextPlays(selectedPlayId) : { prev: [], next: [] };
+
+  // Navigate in modal
+  const handleModalNavigate = (direction: "prev" | "next") => {
+    if (!selectedPlayId) return;
+    const index = plays.findIndex(p => p.id === selectedPlayId);
+    if (index === -1) return;
+
+    if (direction === "prev" && index > 0) {
+      setSelectedPlayId(plays[index - 1].id);
+    } else if (direction === "next" && index < plays.length - 1) {
+      setSelectedPlayId(plays[index + 1].id);
+    }
+  };
 
   return (
-    <div className="rounded-lg shadow-sm overflow-hidden border border-gray-200">
+    <div className="rounded-lg shadow-sm overflow-hidden border border-gray-200 bg-white">
+      {/* Header */}
       <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b border-gray-200">
         <button
           onClick={() => setExpanded(!expanded)}
           className="w-full flex items-center justify-between text-left"
         >
-          <div>
+          <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-gray-900">Play-by-Play</h2>
-            <p className="text-xs text-gray-600 mt-1">
-              {filteredPlays.length} plays {showScoringOnly && '(scoring only)'}
-            </p>
+            {!loading && (
+              <span className="text-sm text-gray-500">
+                {filteredPlays.length} {filteredPlays.length === 1 ? "play" : "plays"}
+              </span>
+            )}
           </div>
           <svg
-            className={`w-6 h-6 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`w-6 h-6 text-gray-600 transition-transform duration-200 ${
+              expanded ? "rotate-180" : ""
+            }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -116,188 +209,123 @@ export default function PlayByPlay({
         </button>
       </div>
 
+      {/* Content */}
       {expanded && (
-        <div className="bg-white">
-          {/* Filters */}
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Period:</span>
-                <button
-                  onClick={() => setSelectedPeriod('all')}
-                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                    selectedPeriod === 'all'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
-                  }`}
-                >
-                  All
-                </button>
-                {periods.map(period => (
+        <>
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : plays.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+              <svg
+                className="w-16 h-16 mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <p className="text-lg font-medium">No play-by-play data available</p>
+              <p className="text-sm">This game may not have started yet</p>
+            </div>
+          ) : (
+            <>
+              {/* View Toggle */}
+              <div className="px-6 py-3 bg-gray-50 border-b flex items-center justify-between">
+                <div className="flex gap-2">
                   <button
-                    key={period}
-                    onClick={() => setSelectedPeriod(period)}
-                    className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                      selectedPeriod === period
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
+                    onClick={() => setViewMode("grid")}
+                    className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                      viewMode === "grid"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
                     }`}
                   >
-                    {plays.find(p => p.period === period)?.periodDisplay || `Period ${period}`}
+                    Grid View
                   </button>
-                ))}
+                  <button
+                    onClick={() => setViewMode("shotchart")}
+                    className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                      viewMode === "shotchart"
+                        ? "bg-blue-600 text-white"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    Shot Chart
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 ml-auto">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showScoringOnly}
-                    onChange={(e) => setShowScoringOnly(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              {/* Filters */}
+              <FilterPanel
+                filters={filters}
+                onFilterChange={setFilters}
+                periods={periods}
+                players={players}
+                playTypeCounts={playTypeCounts}
+              />
+
+              {/* Main Content Area */}
+              {viewMode === "grid" ? (
+                <PlayGrid
+                  plays={filteredPlays}
+                  momentumPlayIds={momentumPlayIds}
+                  homeTeamColor={homeTeamColor}
+                  awayTeamColor={awayTeamColor}
+                  homeTeamId={String(homeTeamId)}
+                  awayTeamId={String(awayTeamId)}
+                  homeTeamLogo={homeTeamLogo}
+                  awayTeamLogo={awayTeamLogo}
+                  homeTeamAbbr={homeTeamAbbr}
+                  awayTeamAbbr={awayTeamAbbr}
+                  onPlayClick={(playId) => {
+                    setSelectedPlayId(playId);
+                    onPlayClick?.(playId);
+                  }}
+                />
+              ) : (
+                <div className="p-6">
+                  <ShotChart
+                    plays={filteredPlays}
+                    homeTeamColor={homeTeamColor}
+                    awayTeamColor={awayTeamColor}
+                    homeTeamId={String(homeTeamId)}
+                    awayTeamId={String(awayTeamId)}
+                    onPlayClick={(playId) => {
+                      setSelectedPlayId(playId);
+                      onPlayClick?.(playId);
+                    }}
                   />
-                  <span className="text-sm font-medium text-gray-700">Scoring plays only</span>
-                </label>
-              </div>
-            </div>
-          </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
 
-          {/* Plays list */}
-          <div className="max-h-[600px] overflow-y-auto">
-            {Object.entries(playsByPeriod).map(([period, periodPlays]) => (
-              <div key={period}>
-                {selectedPeriod === 'all' && (
-                  <div className="sticky top-0 bg-gray-100 px-6 py-2 border-b border-gray-200 z-10">
-                    <h3 className="font-bold text-gray-900">
-                      {periodPlays[0].periodDisplay}
-                    </h3>
-                  </div>
-                )}
-
-                {periodPlays.map((play, idx) => {
-                  const isAwayTeam = play.team === String(awayTeamId);
-                  const isHomeTeam = play.team === String(homeTeamId);
-                  const teamColor = isAwayTeam ? awayTeamColor : isHomeTeam ? homeTeamColor : null;
-
-                  // Check for lead change
-                  const prevPlay = idx > 0 ? periodPlays[idx - 1] : null;
-                  const isLeadChange = prevPlay &&
-                    ((prevPlay.awayScore > prevPlay.homeScore && play.awayScore < play.homeScore) ||
-                     (prevPlay.awayScore < prevPlay.homeScore && play.awayScore > play.homeScore) ||
-                     (prevPlay.awayScore === prevPlay.homeScore && play.awayScore !== play.homeScore));
-
-                  // Calculate score differential
-                  const scoreDiff = Math.abs(play.awayScore - play.homeScore);
-                  const leadingTeam = play.awayScore > play.homeScore ? awayTeamAbbr :
-                                      play.homeScore > play.awayScore ? homeTeamAbbr : null;
-
-                  return (
-                    <div
-                      key={play.id}
-                      onClick={() => onPlayClick?.(play.id)}
-                      className={`px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                        onPlayClick ? 'cursor-pointer' : ''
-                      } ${play.scoringPlay && teamColor ? `bg-[#${teamColor}]/5` : ''} ${
-                        idx % 2 === 0 ? 'bg-gray-50/30' : 'bg-white'
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Time */}
-                        <div className="flex-shrink-0 w-16">
-                          <div className="text-sm font-bold text-gray-900">
-                            {play.clock}
-                          </div>
-                          {isLeadChange && (
-                            <div className="text-xs font-semibold text-orange-600 mt-0.5">
-                              LEAD
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Team Logo */}
-                        <div className="flex-shrink-0 w-10 h-10">
-                          {isAwayTeam && (
-                            <img
-                              src={`https://a.espncdn.com/i/teamlogos/ncaa/500/${awayTeamId}.png`}
-                              alt={awayTeamAbbr}
-                              className="w-10 h-10 rounded-full border-2"
-                              style={{ borderColor: `#${awayTeamColor}` }}
-                            />
-                          )}
-                          {isHomeTeam && (
-                            <img
-                              src={`https://a.espncdn.com/i/teamlogos/ncaa/500/${homeTeamId}.png`}
-                              alt={homeTeamAbbr}
-                              className="w-10 h-10 rounded-full border-2"
-                              style={{ borderColor: `#${homeTeamColor}` }}
-                            />
-                          )}
-                          {!isAwayTeam && !isHomeTeam && (
-                            <div className="w-10 h-10" />
-                          )}
-                        </div>
-
-                        {/* Play description */}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-gray-900 break-words leading-relaxed">
-                            {play.text}
-                          </div>
-                          {play.scoringPlay && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <span
-                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold text-white"
-                                style={{ backgroundColor: teamColor ? `#${teamColor}` : '#3b82f6' }}
-                              >
-                                +{play.scoreValue}
-                              </span>
-                              {play.scoreValue === 3 && (
-                                <span className="text-xs font-medium text-gray-600">3PT</span>
-                              )}
-                              {play.scoreValue === 2 && (
-                                <span className="text-xs font-medium text-gray-600">2PT</span>
-                              )}
-                              {play.scoreValue === 1 && (
-                                <span className="text-xs font-medium text-gray-600">FT</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Score */}
-                        <div className="flex-shrink-0 text-right min-w-[80px]">
-                          <div className="text-lg font-bold text-gray-900">
-                            {play.awayScore}-{play.homeScore}
-                          </div>
-                          {leadingTeam && scoreDiff > 0 && (
-                            <div className="text-xs font-medium text-gray-600 mt-0.5">
-                              {leadingTeam} by {scoreDiff}
-                            </div>
-                          )}
-                          {!leadingTeam && (
-                            <div className="text-xs font-medium text-gray-500 mt-0.5">
-                              Tied
-                            </div>
-                          )}
-                          {play.homeWinPercentage !== undefined && play.homeWinPercentage !== null && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {awayTeamAbbr} {((1 - play.homeWinPercentage) * 100).toFixed(0)}%
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-
-            {filteredPlays.length === 0 && (
-              <div className="px-6 py-12 text-center text-gray-500">
-                No plays match the selected filters.
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Play Details Modal */}
+      {selectedPlay && (
+        <PlayDetailsModal
+          play={selectedPlay}
+          prevPlays={contextPlays.prev}
+          nextPlays={contextPlays.next}
+          homeTeamColor={homeTeamColor}
+          awayTeamColor={awayTeamColor}
+          homeTeamId={String(homeTeamId)}
+          awayTeamId={String(awayTeamId)}
+          homeTeamLogo={homeTeamLogo}
+          awayTeamLogo={awayTeamLogo}
+          homeTeamAbbr={homeTeamAbbr}
+          awayTeamAbbr={awayTeamAbbr}
+          onClose={() => setSelectedPlayId(null)}
+          onNavigate={handleModalNavigate}
+        />
       )}
     </div>
   );

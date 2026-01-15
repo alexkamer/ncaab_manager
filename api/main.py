@@ -851,6 +851,73 @@ async def get_game_odds_live(event_id: int):
         return {"odds": None}
 
 
+def classify_play_type(type_text: str, scoring_play: bool, score_value: int) -> str:
+    """Classify play type based on ESPN type text and other attributes"""
+    if not type_text:
+        return "other"
+
+    type_lower = type_text.lower()
+
+    # Scoring plays
+    if "3" in type_lower and "point" in type_lower:
+        return "three_point_made" if scoring_play else "three_point_missed"
+    elif "2" in type_lower and "point" in type_lower:
+        return "two_point_made" if scoring_play else "two_point_missed"
+    elif "free throw" in type_lower or "ft" in type_lower:
+        return "free_throw_made" if scoring_play else "free_throw_missed"
+    elif "jumper" in type_lower or "layup" in type_lower or "dunk" in type_lower:
+        return "two_point_made" if scoring_play else "two_point_missed"
+
+    # Rebounds
+    if "offensive rebound" in type_lower:
+        return "rebound_offensive"
+    elif "defensive rebound" in type_lower or "rebound" in type_lower:
+        return "rebound_defensive"
+
+    # Turnovers and steals
+    if "turnover" in type_lower:
+        return "turnover"
+    elif "steal" in type_lower:
+        return "steal"
+    elif "block" in type_lower:
+        return "block"
+
+    # Fouls
+    if "technical" in type_lower:
+        return "foul_technical"
+    elif "foul" in type_lower:
+        return "foul_personal"
+
+    # Administrative
+    if "timeout" in type_lower:
+        return "timeout"
+    elif "substitution" in type_lower:
+        return "substitution"
+    elif "jump ball" in type_lower:
+        return "jump_ball"
+    elif "end" in type_lower:
+        return "end_period"
+
+    return "other"
+
+
+def get_play_category(play_type: str) -> str:
+    """Get high-level category for a play type"""
+    scoring_types = ["three_point_made", "three_point_missed", "two_point_made", "two_point_missed", "free_throw_made", "free_throw_missed"]
+    if play_type in scoring_types:
+        return "scoring"
+    elif play_type in ["rebound_offensive", "rebound_defensive"]:
+        return "rebounding"
+    elif play_type in ["turnover", "steal"]:
+        return "turnovers"
+    elif play_type in ["foul_personal", "foul_technical"]:
+        return "fouls"
+    elif play_type in ["block", "steal"]:
+        return "defensive"
+    else:
+        return "administrative"
+
+
 @app.get("/api/games/{event_id}/playbyplay")
 async def get_game_playbyplay(event_id: int):
     """Fetch play-by-play data for game flow visualization"""
@@ -885,8 +952,66 @@ async def get_game_playbyplay(event_id: int):
                     team_id = str(play["team"].get("id"))
 
                 play_id = play.get("id")
+                score_value = play.get("scoreValue", 0)
+                scoring_play = play.get("scoringPlay", False)
 
-                plays.append({
+                # Extract play type first
+                play_type_obj = play.get("type", {})
+                play_type_text = play_type_obj.get("text", "")
+
+                # Classify play
+                play_type = classify_play_type(play_type_text, scoring_play, score_value)
+                play_category = get_play_category(play_type)
+
+                # Define play types that should NOT show player photos
+                NO_PLAYER_PHOTO_TYPES = [
+                    "jump_ball",
+                    "substitution",
+                    "timeout",
+                    "end_period",
+                    "foul_personal",
+                    "foul_technical"
+                ]
+
+                # Extract player information from participants array
+                player_id = None
+                player_name = None
+                player_short_name = None
+                assist_player_id = None
+                assist_player_name = None
+
+                # Only extract player IDs for play types that should show photos
+                if play_type not in NO_PLAYER_PHOTO_TYPES:
+                    participants = play.get("participants", [])
+                    for i, participant in enumerate(participants):
+                        athlete = participant.get("athlete", {})
+                        # Only extract if athlete ID exists (to avoid team-level plays)
+                        athlete_id = athlete.get("id")
+                        if athlete_id:
+                            if i == 0:  # First participant is the primary player
+                                player_id = athlete_id
+                                player_name = athlete.get("displayName")
+                                player_short_name = athlete.get("shortName")
+                            elif i == 1:  # Second participant is typically assist
+                                assist_player_id = athlete_id
+                                assist_player_name = athlete.get("displayName")
+
+                # Extract shot coordinates
+                shot_coordinate = None
+                shot_result = None
+                coordinate = play.get("coordinate", {})
+                if coordinate and coordinate.get("x") is not None:
+                    shot_coordinate = {
+                        "x": coordinate.get("x"),
+                        "y": coordinate.get("y")
+                    }
+                    # Determine if shot was made or missed
+                    shot_result = "made" if score_value > 0 else "missed"
+
+                # Extract sequence number
+                sequence_number = play.get("sequenceNumber", 0)
+
+                play_data = {
                     "id": play_id,
                     "text": play.get("text", ""),
                     "shortText": play.get("text", ""),
@@ -896,11 +1021,28 @@ async def get_game_playbyplay(event_id: int):
                     "periodDisplay": play.get("period", {}).get("displayValue", "1st Half"),
                     "clock": play.get("clock", {}).get("displayValue", "0:00"),
                     "clockValue": play.get("clock", {}).get("value", 0),
-                    "scoreValue": play.get("scoreValue", 0),
-                    "scoringPlay": play.get("scoringPlay", False),
+                    "scoreValue": score_value,
+                    "scoringPlay": scoring_play,
                     "team": team_id,
-                    "homeWinPercentage": win_prob_map.get(play_id)
-                })
+                    "homeWinPercentage": win_prob_map.get(play_id),
+                    # NEW: Player information
+                    "playerId": player_id,
+                    "playerName": player_name,
+                    "playerShortName": player_short_name,
+                    "assistPlayerId": assist_player_id,
+                    "assistPlayerName": assist_player_name,
+                    # NEW: Play classification
+                    "playType": play_type,
+                    "playTypeText": play_type_text,
+                    "playCategory": play_category,
+                    # NEW: Shot chart data
+                    "shotCoordinate": shot_coordinate,
+                    "shotResult": shot_result,
+                    # NEW: Metadata
+                    "sequenceNumber": sequence_number
+                }
+
+                plays.append(play_data)
 
             return {"plays": plays}
 

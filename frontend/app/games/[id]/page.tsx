@@ -127,6 +127,7 @@ interface GameDetail {
   away_team_color?: string;
   away_score: number;
   away_team_ap_rank?: number;
+  away_team_id?: number;
   away_line_scores?: string[];
   status: string;
   status_detail?: string;
@@ -354,10 +355,12 @@ export default async function GameDetailPage({
         awayTeamAbbr={game.away_team_abbr}
         awayTeamId={game.away_team_id}
         awayTeamColor={game.away_team_color}
+        awayTeamLogo={game.away_team_logo}
         homeTeamName={game.home_team_name}
         homeTeamAbbr={game.home_team_abbr}
         homeTeamId={game.home_team_id}
         homeTeamColor={game.home_team_color}
+        homeTeamLogo={game.home_team_logo}
       />
 
       {/* Game Predictions */}
