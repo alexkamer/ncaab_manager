@@ -676,15 +676,22 @@ async def get_game_detail(event_id: int):
         game_dict['source'] = 'database'
 
         # Parse line scores from JSON if they exist
+        print(f"DEBUG: home_line_scores before parsing: {game_dict.get('home_line_scores')}, type: {type(game_dict.get('home_line_scores'))}")
         if game_dict.get('home_line_scores'):
             try:
-                game_dict['home_line_scores'] = json.loads(game_dict['home_line_scores'])
-            except:
+                if isinstance(game_dict['home_line_scores'], str):
+                    game_dict['home_line_scores'] = json.loads(game_dict['home_line_scores'])
+                # else it's already parsed or a list
+            except Exception as e:
+                print(f"Error parsing home_line_scores: {e}, value: {game_dict.get('home_line_scores')}")
                 game_dict['home_line_scores'] = None
         if game_dict.get('away_line_scores'):
             try:
-                game_dict['away_line_scores'] = json.loads(game_dict['away_line_scores'])
-            except:
+                if isinstance(game_dict['away_line_scores'], str):
+                    game_dict['away_line_scores'] = json.loads(game_dict['away_line_scores'])
+                # else it's already parsed or a list
+            except Exception as e:
+                print(f"Error parsing away_line_scores: {e}, value: {game_dict.get('away_line_scores')}")
                 game_dict['away_line_scores'] = None
 
         # Get AP Poll rankings for the week of this game
