@@ -222,12 +222,14 @@ async def fetch_box_score_from_espn(event_id: int) -> Dict[str, Any]:
             'attendance': attendance,
             'home_team_name': home_team.get('team', {}).get('displayName', ''),
             'home_team_abbr': home_team.get('team', {}).get('abbreviation', ''),
+            'home_team_id': int(home_team.get('team', {}).get('id')) if home_team.get('team', {}).get('id') else None,
             'home_team_logo': '',  # Will be populated from boxscore
             'home_team_color': home_team.get('team', {}).get('color', ''),
             'home_score': int(home_team.get('score', 0)) if home_team.get('score') else 0,
             'home_line_scores': home_line_scores,
             'away_team_name': away_team.get('team', {}).get('displayName', ''),
             'away_team_abbr': away_team.get('team', {}).get('abbreviation', ''),
+            'away_team_id': int(away_team.get('team', {}).get('id')) if away_team.get('team', {}).get('id') else None,
             'away_team_logo': '',  # Will be populated from boxscore
             'away_team_color': away_team.get('team', {}).get('color', ''),
             'away_score': int(away_team.get('score', 0)) if away_team.get('score') else 0,
