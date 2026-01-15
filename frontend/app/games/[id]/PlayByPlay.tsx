@@ -13,12 +13,12 @@ interface PlayByPlayProps {
   eventId: number;
   awayTeamName: string;
   awayTeamAbbr: string;
-  awayTeamId?: number;
+  awayTeamId?: string;
   awayTeamColor?: string;
   awayTeamLogo: string;
   homeTeamName: string;
   homeTeamAbbr: string;
-  homeTeamId?: number;
+  homeTeamId?: string;
   homeTeamColor?: string;
   homeTeamLogo: string;
   onPlayClick?: (playId: string) => void;
@@ -278,8 +278,8 @@ export default function PlayByPlay({
                   momentumPlayIds={momentumPlayIds}
                   homeTeamColor={homeTeamColor}
                   awayTeamColor={awayTeamColor}
-                  homeTeamId={String(homeTeamId)}
-                  awayTeamId={String(awayTeamId)}
+                  homeTeamId={homeTeamId || ""}
+                  awayTeamId={awayTeamId || ""}
                   homeTeamLogo={homeTeamLogo}
                   awayTeamLogo={awayTeamLogo}
                   homeTeamAbbr={homeTeamAbbr}
@@ -295,8 +295,8 @@ export default function PlayByPlay({
                     plays={filteredPlays}
                     homeTeamColor={homeTeamColor}
                     awayTeamColor={awayTeamColor}
-                    homeTeamId={String(homeTeamId)}
-                    awayTeamId={String(awayTeamId)}
+                    homeTeamId={homeTeamId || ""}
+                    awayTeamId={awayTeamId || ""}
                     onPlayClick={(playId) => {
                       setSelectedPlayId(playId);
                       onPlayClick?.(playId);
@@ -317,8 +317,8 @@ export default function PlayByPlay({
           nextPlays={contextPlays.next}
           homeTeamColor={homeTeamColor}
           awayTeamColor={awayTeamColor}
-          homeTeamId={String(homeTeamId)}
-          awayTeamId={String(awayTeamId)}
+          homeTeamId={homeTeamId || ""}
+          awayTeamId={awayTeamId || ""}
           homeTeamLogo={homeTeamLogo}
           awayTeamLogo={awayTeamLogo}
           homeTeamAbbr={homeTeamAbbr}

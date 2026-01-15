@@ -353,12 +353,12 @@ export default async function GameDetailPage({
         eventId={game.event_id}
         awayTeamName={game.away_team_name}
         awayTeamAbbr={game.away_team_abbr}
-        awayTeamId={game.away_team_id}
+        awayTeamId={game.away_team_id ? String(game.away_team_id) : undefined}
         awayTeamColor={game.away_team_color}
         awayTeamLogo={game.away_team_logo}
         homeTeamName={game.home_team_name}
         homeTeamAbbr={game.home_team_abbr}
-        homeTeamId={game.home_team_id}
+        homeTeamId={game.home_team_id ? String(game.home_team_id) : undefined}
         homeTeamColor={game.home_team_color}
         homeTeamLogo={game.home_team_logo}
       />
