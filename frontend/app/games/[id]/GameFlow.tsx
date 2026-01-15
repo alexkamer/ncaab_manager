@@ -58,9 +58,6 @@ export default function GameFlow({
   // Filter to only scoring plays for all calculations and visualization
   const scoringPlays = plays.filter(p => p.scoringPlay);
 
-  // Calculate total game time for X-axis scaling
-  const totalGameTime = scoringPlays.length > 0 ? getGameTimeInSeconds(scoringPlays[scoringPlays.length - 1]) : 2400;
-
   // Helper function to convert game time to seconds elapsed
   const getGameTimeInSeconds = (play: Play): number => {
     const period = play.period || 1;
@@ -77,6 +74,9 @@ export default function GameFlow({
     // Calculate elapsed time: (period-1) * periodLength + (periodLength - remaining)
     return (period - 1) * periodLength + (periodLength - clockSeconds);
   };
+
+  // Calculate total game time for X-axis scaling
+  const totalGameTime = scoringPlays.length > 0 ? getGameTimeInSeconds(scoringPlays[scoringPlays.length - 1]) : 2400;
 
   // Throttled mouse move handler to reduce expensive calculations
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
