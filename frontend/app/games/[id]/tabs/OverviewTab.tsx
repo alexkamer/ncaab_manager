@@ -36,6 +36,7 @@ interface OverviewTabProps {
   };
   leadChanges: number;
   isCompleted?: boolean;
+  onViewLeadChanges?: () => void;
 }
 
 export default function OverviewTab({
@@ -46,6 +47,7 @@ export default function OverviewTab({
   shootingEfficiency,
   leadChanges,
   isCompleted,
+  onViewLeadChanges,
 }: OverviewTabProps) {
   // Helper function to get dynamic font size based on name length
   const getNameFontSize = (name: string) => {
@@ -193,14 +195,17 @@ export default function OverviewTab({
         </div>
 
         {/* Lead Changes Card */}
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-gray-200">
+        <div
+          className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all cursor-pointer group hover:border-purple-300"
+          onClick={onViewLeadChanges}
+        >
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-gray-200 group-hover:from-purple-100 group-hover:to-pink-100 transition-all">
             <h3 className="text-lg font-bold text-gray-900">Game Competitiveness</h3>
             <p className="text-xs text-gray-600 mt-1">Lead changes</p>
           </div>
           <div className="p-6 flex flex-col items-center justify-center h-48">
             <div className="text-center">
-              <div className="text-6xl font-black text-purple-600 mb-3">
+              <div className="text-6xl font-black text-purple-600 mb-3 group-hover:scale-110 transition-transform">
                 {leadChanges}
               </div>
               <p className="text-sm font-medium text-gray-600">
@@ -210,6 +215,14 @@ export default function OverviewTab({
                 {leadChanges > 8 && 'Highly Competitive Thriller'}
               </p>
               <p className="text-xs text-gray-500 mt-2">Times the lead changed</p>
+              {leadChanges > 0 && (
+                <button className="mt-3 text-xs text-purple-600 font-semibold hover:text-purple-700 flex items-center gap-1 mx-auto group-hover:gap-2 transition-all">
+                  View all lead changes
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         </div>

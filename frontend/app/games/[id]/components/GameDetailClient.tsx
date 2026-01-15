@@ -19,9 +19,24 @@ interface GameDetailClientProps {
 export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: GameDetailClientProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [leadChanges, setLeadChanges] = useState(7); // Default placeholder
+  const [showLeadChangesFilter, setShowLeadChangesFilter] = useState(false);
 
   const awayWon = game.away_score > game.home_score;
   const homeWon = game.home_score > game.away_score;
+
+  // Handler for viewing lead changes
+  const handleViewLeadChanges = () => {
+    setShowLeadChangesFilter(true);
+    setActiveTab('playbyplay');
+  };
+
+  // Reset lead changes filter when changing tabs
+  const handleTabChange = (tab: string) => {
+    if (tab !== 'playbyplay') {
+      setShowLeadChangesFilter(false);
+    }
+    setActiveTab(tab);
+  };
 
   // Calculate actual lead changes from play-by-play data
   useEffect(() => {
@@ -35,9 +50,14 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
         const plays = data.plays || [];
 
         // Count lead changes using the same logic as the play-by-play filter
+        // IMPORTANT: Lead changes can ONLY happen on scoring plays
         let count = 0;
         for (let i = 0; i < plays.length; i++) {
           const currentPlay = plays[i];
+
+          // Lead changes can ONLY occur on scoring plays
+          if (!currentPlay.scoringPlay) continue;
+
           const currLeader = currentPlay.homeScore > currentPlay.awayScore ? "home" :
                              currentPlay.awayScore > currentPlay.homeScore ? "away" : "tied";
 
@@ -205,7 +225,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
         status={game.status_detail || game.status}
         isCompleted={game.is_completed}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
       />
 
       {/* Hero Section */}
@@ -235,7 +255,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
 
       {/* Tab Navigation - becomes sticky on scroll */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
       </div>
 
       {/* Tab Content */}
@@ -261,6 +281,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
             shootingEfficiency={shootingEfficiency}
             leadChanges={leadChanges}
             isCompleted={game.is_completed}
+            onViewLeadChanges={handleViewLeadChanges}
           />
         )}
 
@@ -277,6 +298,7 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
             homeTeamId={game.home_team_id ? String(game.home_team_id) : undefined}
             homeTeamColor={game.home_team_color}
             homeTeamLogo={homeTeamLogo}
+            initialFilterLeadChanges={showLeadChangesFilter}
           />
         )}
 

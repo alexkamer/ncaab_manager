@@ -90,7 +90,13 @@ export interface FilterState {
 // Helper function to detect lead changes
 // A lead change only occurs when a different team takes the lead
 // (not when the same team retakes the lead after a tie)
+// IMPORTANT: Lead changes can ONLY happen on scoring plays
 export function isLeadChange(currentPlay: EnhancedPlay, previousPlay: EnhancedPlay, allPlays: EnhancedPlay[]): boolean {
+  // Lead changes can ONLY occur on scoring plays
+  if (!currentPlay.scoringPlay) {
+    return false;
+  }
+
   const currLeader = currentPlay.homeScore > currentPlay.awayScore ? "home" :
                      currentPlay.awayScore > currentPlay.homeScore ? "away" : "tied";
 

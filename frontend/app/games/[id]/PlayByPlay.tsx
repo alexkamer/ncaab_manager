@@ -23,6 +23,7 @@ interface PlayByPlayProps {
   homeTeamColor?: string;
   homeTeamLogo: string;
   onPlayClick?: (playId: string) => void;
+  initialFilterLeadChanges?: boolean;
 }
 
 export default function PlayByPlay({
@@ -37,7 +38,8 @@ export default function PlayByPlay({
   homeTeamId,
   homeTeamColor,
   homeTeamLogo,
-  onPlayClick
+  onPlayClick,
+  initialFilterLeadChanges = false
 }: PlayByPlayProps) {
   const [plays, setPlays] = useState<EnhancedPlay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ export default function PlayByPlay({
     showScoringOnly: false,
     clutchTimeOnly: false,
     momentumPlaysOnly: false,
-    leadChangesOnly: false
+    leadChangesOnly: initialFilterLeadChanges
   });
 
   // Fetch play-by-play data
