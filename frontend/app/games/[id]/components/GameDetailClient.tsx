@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import GameHero from './GameHero';
 import StickyHeader from './StickyHeader';
 import TabNavigation from './TabNavigation';
@@ -15,6 +15,17 @@ interface GameDetailClientProps {
   awayTeamLogo: string;
   homeTeamLogo: string;
 }
+
+// Map stat types to ESPN labels and database fields (moved outside component for performance)
+const STAT_MAPPING: Record<string, { espnLabel: string; dbField: string }> = {
+  'PTS': { espnLabel: 'PTS', dbField: 'points' },
+  'REB': { espnLabel: 'REB', dbField: 'rebounds' },
+  'AST': { espnLabel: 'AST', dbField: 'assists' },
+  'STL': { espnLabel: 'STL', dbField: 'steals' },
+  'BLK': { espnLabel: 'BLK', dbField: 'blocks' },
+  'FG%': { espnLabel: 'FG%', dbField: 'field_goal_pct' },
+  '3PT': { espnLabel: '3PM', dbField: 'three_point_made' },
+};
 
 export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: GameDetailClientProps) {
   const [activeTab, setActiveTab] = useState('overview');
@@ -98,23 +109,12 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
     }
   }, [game.event_id, game.is_completed]);
 
-  // Extract team leaders by stat type
-  const extractTeamLeaders = (statType: string) => {
+  // Extract team leaders by stat type (memoized with useCallback to prevent recreation on every render)
+  const extractTeamLeaders = useCallback((statType: string) => {
     let awayLeaders: any[] = [];
     let homeLeaders: any[] = [];
 
-    // Map stat types to ESPN labels and database fields
-    const statMapping: Record<string, { espnLabel: string; dbField: string }> = {
-      'PTS': { espnLabel: 'PTS', dbField: 'points' },
-      'REB': { espnLabel: 'REB', dbField: 'rebounds' },
-      'AST': { espnLabel: 'AST', dbField: 'assists' },
-      'STL': { espnLabel: 'STL', dbField: 'steals' },
-      'BLK': { espnLabel: 'BLK', dbField: 'blocks' },
-      'FG%': { espnLabel: 'FG%', dbField: 'field_goal_pct' },
-      '3PT': { espnLabel: '3PM', dbField: 'three_point_made' },
-    };
-
-    const mapping = statMapping[statType];
+    const mapping = STAT_MAPPING[statType];
     if (!mapping) return { away: awayLeaders, home: homeLeaders };
 
     if (game.source === 'espn' && game.players) {
@@ -198,10 +198,10 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
     }
 
     return { away: awayLeaders, home: homeLeaders };
-  };
+  }, [game.source, game.players, game.player_stats, game.home_team_id, game.away_team_id]);
 
-  // Extract shooting efficiency
-  const extractShootingEfficiency = () => {
+  // Extract shooting efficiency (memoized with useCallback to prevent recreation on every render)
+  const extractShootingEfficiency = useCallback(() => {
     const awayStats = game.team_stats?.find((t: any) => t.homeAway === 'away' || t.home_away === 'away');
     const homeStats = game.team_stats?.find((t: any) => t.homeAway === 'home' || t.home_away === 'home');
 
@@ -244,10 +244,17 @@ export default function GameDetailClient({ game, awayTeamLogo, homeTeamLogo }: G
         },
       };
     }
-  };
+  }, [game.team_stats]);
 
-  const teamLeaders = extractTeamLeaders(selectedStatType);
-  const shootingEfficiency = extractShootingEfficiency();
+  // Memoize team leaders calculation to avoid recomputing on every render
+  const teamLeaders = useMemo(() => {
+    return extractTeamLeaders(selectedStatType);
+  }, [extractTeamLeaders, selectedStatType]);
+
+  // Memoize shooting efficiency calculation to avoid recomputing on every render
+  const shootingEfficiency = useMemo(() => {
+    return extractShootingEfficiency();
+  }, [extractShootingEfficiency]);
 
   return (
     <>

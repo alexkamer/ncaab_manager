@@ -41,6 +41,17 @@ interface OverviewTabProps {
   onViewLeadChanges?: () => void;
 }
 
+// Stat type options (moved outside component for performance)
+const STAT_TYPES = [
+  { value: 'PTS', label: 'Points', unit: 'PTS' },
+  { value: 'REB', label: 'Rebounds', unit: 'REB' },
+  { value: 'AST', label: 'Assists', unit: 'AST' },
+  { value: 'STL', label: 'Steals', unit: 'STL' },
+  { value: 'BLK', label: 'Blocks', unit: 'BLK' },
+  { value: 'FG%', label: 'FG%', unit: '%' },
+  { value: '3PT', label: '3-Pointers', unit: '3PT' },
+];
+
 export default function OverviewTab({
   eventId,
   awayTeam,
@@ -53,18 +64,7 @@ export default function OverviewTab({
   isCompleted,
   onViewLeadChanges,
 }: OverviewTabProps) {
-  // Stat type options
-  const statTypes = [
-    { value: 'PTS', label: 'Points', unit: 'PTS' },
-    { value: 'REB', label: 'Rebounds', unit: 'REB' },
-    { value: 'AST', label: 'Assists', unit: 'AST' },
-    { value: 'STL', label: 'Steals', unit: 'STL' },
-    { value: 'BLK', label: 'Blocks', unit: 'BLK' },
-    { value: 'FG%', label: 'FG%', unit: '%' },
-    { value: '3PT', label: '3-Pointers', unit: '3PT' },
-  ];
-
-  const currentStatType = statTypes.find(s => s.value === selectedStatType) || statTypes[0];
+  const currentStatType = STAT_TYPES.find(s => s.value === selectedStatType) || STAT_TYPES[0];
 
   // Helper function to get dynamic font size based on name length - removed, using responsive sizing instead
 
@@ -96,7 +96,7 @@ export default function OverviewTab({
                 className="font-semibold text-gray-700 bg-white border border-gray-300 rounded-md px-2 py-1.5 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors cursor-pointer flex-shrink-0"
                 style={{ fontSize: 'clamp(0.65rem, 2.5vw, 0.875rem)' }}
               >
-                {statTypes.map(stat => (
+                {STAT_TYPES.map(stat => (
                   <option key={stat.value} value={stat.value}>
                     {stat.label}
                   </option>
