@@ -90,9 +90,9 @@ export default function OverviewTab({
         {/* Team Leaders Card */}
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-gray-900 whitespace-nowrap" style={{ fontSize: 'clamp(0.875rem, 1.5vw + 0.5rem, 1.125rem)' }}>
+                <h3 className="font-bold text-gray-900 leading-tight" style={{ fontSize: 'clamp(0.75rem, 3vw, 1.125rem)' }}>
                   Team Leaders
                 </h3>
                 <p className="text-xs text-gray-600 mt-1">Top performer per team</p>
@@ -100,8 +100,8 @@ export default function OverviewTab({
               <select
                 value={selectedStatType}
                 onChange={(e) => onStatTypeChange(e.target.value)}
-                className="font-semibold text-gray-700 bg-white border border-gray-300 rounded-md px-3 py-1.5 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors cursor-pointer ml-4 flex-shrink-0"
-                style={{ fontSize: 'clamp(0.75rem, 1.2vw + 0.4rem, 0.875rem)' }}
+                className="font-semibold text-gray-700 bg-white border border-gray-300 rounded-md px-2 py-1.5 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors cursor-pointer flex-shrink-0"
+                style={{ fontSize: 'clamp(0.65rem, 2.5vw, 0.875rem)' }}
               >
                 {statTypes.map(stat => (
                   <option key={stat.value} value={stat.value}>
