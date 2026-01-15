@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BettingLines from "./BettingLines";
+import GameFlow from "./GameFlow";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -331,170 +332,19 @@ export default async function GameDetailPage({
         </div>
       )}
 
-      {/* Game Flow Visualization */}
-      {game.is_completed && game.home_line_scores && game.away_line_scores &&
-       game.home_line_scores.length > 0 && game.away_line_scores.length > 0 && (
-        <div className="border border-gray-200">
-          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900">Game Flow</h2>
-          </div>
-          <div className="p-6">
-            {(() => {
-              // Calculate running scores for each period
-              const periods = game.home_line_scores.length;
-              let awayRunningScores = [0];
-              let homeRunningScores = [0];
-
-              for (let i = 0; i < periods; i++) {
-                awayRunningScores.push(awayRunningScores[i] + parseInt(game.away_line_scores[i]));
-                homeRunningScores.push(homeRunningScores[i] + parseInt(game.home_line_scores[i]));
-              }
-
-              const maxScore = Math.max(...awayRunningScores, ...homeRunningScores);
-              const periodLabels = ['Start', ...Array.from({ length: periods }, (_, i) =>
-                i === 0 ? '1st' : i === 1 ? '2nd' : `OT${i - 1}`
-              )];
-
-              return (
-                <div className="space-y-4">
-                  {/* Score progression chart */}
-                  <div className="relative" style={{ height: '300px' }}>
-                    {/* Y-axis labels */}
-                    <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between text-xs text-gray-500 pr-2 text-right">
-                      <span>{maxScore}</span>
-                      <span>{Math.floor(maxScore * 0.75)}</span>
-                      <span>{Math.floor(maxScore * 0.5)}</span>
-                      <span>{Math.floor(maxScore * 0.25)}</span>
-                      <span>0</span>
-                    </div>
-
-                    {/* Chart area */}
-                    <div className="absolute left-12 right-0 top-0 bottom-8">
-                      {/* Grid lines */}
-                      <div className="absolute inset-0">
-                        {[0, 25, 50, 75, 100].map((pct) => (
-                          <div
-                            key={pct}
-                            className="absolute w-full border-t border-gray-200"
-                            style={{ bottom: `${pct}%` }}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Away team line */}
-                      <svg className="absolute inset-0" preserveAspectRatio="none">
-                        <polyline
-                          points={awayRunningScores.map((score, idx) => {
-                            const x = (idx / periods) * 100;
-                            const y = 100 - (score / maxScore * 100);
-                            return `${x}%,${y}%`;
-                          }).join(' ')}
-                          fill="none"
-                          stroke="rgb(37, 99, 235)"
-                          strokeWidth="3"
-                          vectorEffect="non-scaling-stroke"
-                        />
-                        {awayRunningScores.map((score, idx) => {
-                          const x = (idx / periods) * 100;
-                          const y = 100 - (score / maxScore * 100);
-                          return (
-                            <circle
-                              key={`away-${idx}`}
-                              cx={`${x}%`}
-                              cy={`${y}%`}
-                              r="4"
-                              fill="rgb(37, 99, 235)"
-                            />
-                          );
-                        })}
-                      </svg>
-
-                      {/* Home team line */}
-                      <svg className="absolute inset-0" preserveAspectRatio="none">
-                        <polyline
-                          points={homeRunningScores.map((score, idx) => {
-                            const x = (idx / periods) * 100;
-                            const y = 100 - (score / maxScore * 100);
-                            return `${x}%,${y}%`;
-                          }).join(' ')}
-                          fill="none"
-                          stroke="rgb(220, 38, 38)"
-                          strokeWidth="3"
-                          vectorEffect="non-scaling-stroke"
-                        />
-                        {homeRunningScores.map((score, idx) => {
-                          const x = (idx / periods) * 100;
-                          const y = 100 - (score / maxScore * 100);
-                          return (
-                            <circle
-                              key={`home-${idx}`}
-                              cx={`${x}%`}
-                              cy={`${y}%`}
-                              r="4"
-                              fill="rgb(220, 38, 38)"
-                            />
-                          );
-                        })}
-                      </svg>
-                    </div>
-
-                    {/* X-axis labels */}
-                    <div className="absolute left-12 right-0 bottom-0 h-8 flex justify-between text-xs text-gray-500">
-                      {periodLabels.map((label, idx) => (
-                        <span key={idx} className="flex-1 text-center">{label}</span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Legend */}
-                  <div className="flex items-center justify-center space-x-6 pt-4 border-t border-gray-200">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-blue-600 rounded"></div>
-                      <img src={game.away_team_logo} alt="" className="w-5 h-5" />
-                      <span className="text-sm font-medium text-gray-700">{game.away_team_name}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-red-600 rounded"></div>
-                      <img src={game.home_team_logo} alt="" className="w-5 h-5" />
-                      <span className="text-sm font-medium text-gray-700">{game.home_team_name}</span>
-                    </div>
-                  </div>
-
-                  {/* Period-by-period breakdown */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4">
-                    {game.away_line_scores.map((awayScore, idx) => {
-                      const homeScore = parseInt(game.home_line_scores![idx]);
-                      const awaySc = parseInt(awayScore);
-                      const periodLabel = idx === 0 ? '1st Half' : idx === 1 ? '2nd Half' : `OT ${idx - 1}`;
-
-                      return (
-                        <div key={idx} className="bg-gray-50 border border-gray-200 rounded p-3">
-                          <div className="text-xs font-semibold text-gray-500 uppercase mb-2">{periodLabel}</div>
-                          <div className="flex justify-between items-center">
-                            <div className="text-center">
-                              <div className="text-sm text-gray-600">{game.away_team_abbr}</div>
-                              <div className={`text-xl font-bold ${awaySc > homeScore ? 'text-gray-900' : 'text-gray-400'}`}>
-                                {awayScore}
-                              </div>
-                            </div>
-                            <div className="text-gray-400">-</div>
-                            <div className="text-center">
-                              <div className="text-sm text-gray-600">{game.home_team_abbr}</div>
-                              <div className={`text-xl font-bold ${homeScore > awaySc ? 'text-gray-900' : 'text-gray-400'}`}>
-                                {homeScore}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
+      {/* Game Flow Visualization - Play-by-Play Based */}
+      <GameFlow
+        eventId={game.event_id}
+        awayTeamName={game.away_team_name}
+        awayTeamAbbr={game.away_team_abbr}
+        awayTeamId={game.away_team_id}
+        awayTeamColor={game.away_team_color}
+        homeTeamName={game.home_team_name}
+        homeTeamAbbr={game.home_team_abbr}
+        homeTeamId={game.home_team_id}
+        homeTeamColor={game.home_team_color}
+        isCompleted={game.is_completed}
+      />
 
       {/* Game Predictions */}
       {game.prediction && (game.prediction.home_win_probability || game.prediction.away_win_probability) && (

@@ -851,6 +851,66 @@ async def get_game_odds_live(event_id: int):
         return {"odds": None}
 
 
+@app.get("/api/games/{event_id}/playbyplay")
+async def get_game_playbyplay(event_id: int):
+    """Fetch play-by-play data for game flow visualization"""
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            # Fetch from ESPN summary API which includes all plays
+            summary_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event={event_id}"
+            response = await client.get(summary_url)
+
+            if response.status_code != 200:
+                return {"plays": []}
+
+            summary_data = response.json()
+
+            if not summary_data.get("plays"):
+                return {"plays": []}
+
+            # Build a map of play ID to win probability
+            win_prob_map = {}
+            if summary_data.get("winprobability"):
+                for wp in summary_data["winprobability"]:
+                    play_id = wp.get("playId")
+                    if play_id:
+                        win_prob_map[play_id] = wp.get("homeWinPercentage")
+
+            # Parse ALL plays (not just scoring plays) for complete game flow
+            plays = []
+            for play in summary_data["plays"]:
+                # Extract team ID if present
+                team_id = None
+                if play.get("team"):
+                    team_id = str(play["team"].get("id"))
+
+                play_id = play.get("id")
+
+                plays.append({
+                    "id": play_id,
+                    "text": play.get("text", ""),
+                    "shortText": play.get("text", ""),
+                    "awayScore": play.get("awayScore", 0),
+                    "homeScore": play.get("homeScore", 0),
+                    "period": play.get("period", {}).get("number", 1),
+                    "periodDisplay": play.get("period", {}).get("displayValue", "1st Half"),
+                    "clock": play.get("clock", {}).get("displayValue", "0:00"),
+                    "clockValue": play.get("clock", {}).get("value", 0),
+                    "scoreValue": play.get("scoreValue", 0),
+                    "scoringPlay": play.get("scoringPlay", False),
+                    "team": team_id,
+                    "homeWinPercentage": win_prob_map.get(play_id)
+                })
+
+            return {"plays": plays}
+
+    except Exception as e:
+        print(f"Error fetching play-by-play for event {event_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"plays": []}
+
+
 @app.get("/api/games/{event_id}/preview")
 async def get_game_preview(event_id: int):
     """Get game preview information"""
