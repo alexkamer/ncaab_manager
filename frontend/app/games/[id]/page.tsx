@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BettingLines from "./BettingLines";
 import GameFlow from "./GameFlow";
+import PlayByPlay from "./PlayByPlay";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -344,6 +345,19 @@ export default async function GameDetailPage({
         homeTeamId={game.home_team_id}
         homeTeamColor={game.home_team_color}
         isCompleted={game.is_completed}
+      />
+
+      {/* Play-by-Play */}
+      <PlayByPlay
+        eventId={game.event_id}
+        awayTeamName={game.away_team_name}
+        awayTeamAbbr={game.away_team_abbr}
+        awayTeamId={game.away_team_id}
+        awayTeamColor={game.away_team_color}
+        homeTeamName={game.home_team_name}
+        homeTeamAbbr={game.home_team_abbr}
+        homeTeamId={game.home_team_id}
+        homeTeamColor={game.home_team_color}
       />
 
       {/* Game Predictions */}
