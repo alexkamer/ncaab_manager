@@ -67,6 +67,46 @@ interface TeamStats {
   homeAway: string;
 }
 
+interface GamePrediction {
+  prediction_id: number;
+  event_id: number;
+  matchup_quality?: number;
+  home_win_probability?: number;
+  home_predicted_margin?: number;
+  away_win_probability?: number;
+  away_predicted_margin?: number;
+  home_game_score?: number;
+  away_game_score?: number;
+  home_prediction_correct?: boolean;
+  away_prediction_correct?: boolean;
+  margin_error?: number;
+}
+
+interface GameOdds {
+  odds_id: number;
+  event_id: number;
+  provider_name?: string;
+  over_under?: number;
+  over_odds?: number;
+  under_odds?: number;
+  open_total?: number;
+  close_total?: number;
+  spread?: number;
+  away_is_favorite?: boolean;
+  away_moneyline?: number;
+  away_spread_odds?: number;
+  away_open_spread?: number;
+  away_close_spread?: number;
+  home_is_favorite?: boolean;
+  home_moneyline?: number;
+  home_spread_odds?: number;
+  home_open_spread?: number;
+  home_close_spread?: number;
+  moneyline_winner?: boolean;
+  spread_winner?: boolean;
+  over_under_result?: string;
+}
+
 interface GameDetail {
   event_id: number;
   date: string;
@@ -89,9 +129,12 @@ interface GameDetail {
   status_detail?: string;
   venue_name: string;
   attendance?: number;
+  is_completed?: boolean;
   player_stats?: PlayerStat[];
   players?: TeamPlayerStats[];
   team_stats?: TeamStats[];
+  prediction?: GamePrediction;
+  odds?: GameOdds;
   source?: string;
 }
 
@@ -283,6 +326,286 @@ export default async function GameDetailPage({
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Game Predictions */}
+      {game.prediction && (
+        <div className="border border-gray-200">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900">ESPN Game Predictions</h2>
+            {game.prediction.matchup_quality && (
+              <p className="text-xs text-gray-500 mt-1">
+                Matchup Quality: {game.prediction.matchup_quality.toFixed(1)}%
+              </p>
+            )}
+          </div>
+          <div className="p-6">
+            <div className="space-y-6">
+              {/* Win Probability */}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Win Probability
+                </div>
+                <div className="space-y-4">
+                  {/* Away Team */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <img src={game.away_team_logo} alt={game.away_team_name} className="w-6 h-6" />
+                        <span className="font-medium text-gray-900">{game.away_team_name}</span>
+                      </div>
+                      <span className="text-2xl font-bold text-gray-900">
+                        {game.prediction.away_win_probability?.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 transition-all duration-500"
+                        style={{ width: `${game.prediction.away_win_probability || 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Home Team */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <img src={game.home_team_logo} alt={game.home_team_name} className="w-6 h-6" />
+                        <span className="font-medium text-gray-900">{game.home_team_name}</span>
+                      </div>
+                      <span className="text-2xl font-bold text-gray-900">
+                        {game.prediction.home_win_probability?.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div
+                        className="h-full bg-red-600 transition-all duration-500"
+                        style={{ width: `${game.prediction.home_win_probability || 0}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Predicted Margins */}
+              {(game.prediction.home_predicted_margin || game.prediction.away_predicted_margin) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <img src={game.away_team_logo} alt={game.away_team_name} className="w-5 h-5" />
+                      <span className="text-sm font-medium text-gray-600">Predicted Margin</span>
+                    </div>
+                    <div className="text-3xl font-bold text-blue-800">
+                      {game.prediction.away_predicted_margin && game.prediction.away_predicted_margin > 0 ? '+' : ''}
+                      {game.prediction.away_predicted_margin?.toFixed(1)}
+                    </div>
+                  </div>
+
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <img src={game.home_team_logo} alt={game.home_team_name} className="w-5 h-5" />
+                      <span className="text-sm font-medium text-gray-600">Predicted Margin</span>
+                    </div>
+                    <div className="text-3xl font-bold text-red-800">
+                      {game.prediction.home_predicted_margin && game.prediction.home_predicted_margin > 0 ? '+' : ''}
+                      {game.prediction.home_predicted_margin?.toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Post-Game Prediction Accuracy */}
+              {game.is_completed && game.prediction.margin_error !== undefined && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="text-sm font-semibold text-gray-700 mb-2">Prediction Accuracy</div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm text-gray-600">Margin Error: </span>
+                      <span className="text-lg font-bold text-gray-900">
+                        {Math.abs(game.prediction.margin_error).toFixed(1)} points
+                      </span>
+                    </div>
+                    {game.prediction.home_prediction_correct !== undefined && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">Winner: </span>
+                        {game.prediction.home_prediction_correct || game.prediction.away_prediction_correct ? (
+                          <span className="text-green-600 font-semibold">✓ Correct</span>
+                        ) : (
+                          <span className="text-red-600 font-semibold">✗ Incorrect</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comprehensive Betting Odds */}
+      {game.odds && (
+        <div className="border border-gray-200">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900">Betting Lines</h2>
+            {game.odds.provider_name && (
+              <p className="text-xs text-gray-500 mt-1">Source: {game.odds.provider_name}</p>
+            )}
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Spread */}
+              {game.odds.spread !== undefined && game.odds.spread !== null && (
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-2 border-b border-gray-200">
+                    Point Spread
+                  </div>
+                  <div className="space-y-3">
+                    {/* Current/Closing Spread */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="text-xs text-gray-600 mb-1">Current Line</div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-gray-700">{game.away_team_abbr}</div>
+                          <div className="text-2xl font-bold text-green-800">
+                            {game.odds.away_is_favorite ? '-' : '+'}{game.odds.spread}
+                          </div>
+                          {game.odds.away_spread_odds && (
+                            <div className="text-xs text-gray-500">({game.odds.away_spread_odds > 0 ? '+' : ''}{game.odds.away_spread_odds})</div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-gray-700">{game.home_team_abbr}</div>
+                          <div className="text-2xl font-bold text-green-800">
+                            {game.odds.home_is_favorite ? '-' : '+'}{game.odds.spread}
+                          </div>
+                          {game.odds.home_spread_odds && (
+                            <div className="text-xs text-gray-500">({game.odds.home_spread_odds > 0 ? '+' : ''}{game.odds.home_spread_odds})</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Opening Spread */}
+                    {(game.odds.away_open_spread || game.odds.home_open_spread) && (
+                      <div className="text-xs text-gray-500">
+                        <div className="flex justify-between">
+                          <span>Opening: {game.away_team_abbr} {game.odds.away_open_spread && ((game.odds.away_is_favorite ? '-' : '+') + game.odds.away_open_spread)}</span>
+                          <span>{game.home_team_abbr} {game.odds.home_open_spread && ((game.odds.home_is_favorite ? '-' : '+') + game.odds.home_open_spread)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Post-Game Result */}
+                    {game.is_completed && game.odds.spread_winner !== undefined && (
+                      <div className="text-xs">
+                        {game.odds.spread_winner ? (
+                          <span className="text-green-600 font-semibold">✓ Cover</span>
+                        ) : (
+                          <span className="text-red-600 font-semibold">✗ No Cover</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Moneyline */}
+              {(game.odds.home_moneyline || game.odds.away_moneyline) && (
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-2 border-b border-gray-200">
+                    Moneyline
+                  </div>
+                  <div className="space-y-2">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-sm font-medium text-gray-700 mb-1">{game.away_team_abbr}</div>
+                          <div className="text-2xl font-bold text-blue-800">
+                            {game.odds.away_moneyline && (game.odds.away_moneyline > 0 ? '+' : '')}{game.odds.away_moneyline}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-gray-700 mb-1">{game.home_team_abbr}</div>
+                          <div className="text-2xl font-bold text-blue-800">
+                            {game.odds.home_moneyline && (game.odds.home_moneyline > 0 ? '+' : '')}{game.odds.home_moneyline}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Post-Game Result */}
+                    {game.is_completed && game.odds.moneyline_winner !== undefined && (
+                      <div className="text-xs text-center">
+                        <span className="text-gray-600">Winner: </span>
+                        <span className="font-semibold text-gray-900">
+                          {game.odds.moneyline_winner ? game.away_team_abbr : game.home_team_abbr}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Over/Under */}
+              {game.odds.over_under && (
+                <div className="space-y-3">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide pb-2 border-b border-gray-200">
+                    Total (Over/Under)
+                  </div>
+                  <div className="space-y-3">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="text-xs text-gray-600 mb-1">Current Total</div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-purple-800 mb-2">
+                          {game.odds.over_under}
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-600">
+                          <div>
+                            O: {game.odds.over_odds && ((game.odds.over_odds > 0 ? '+' : '') + game.odds.over_odds)}
+                          </div>
+                          <div>
+                            U: {game.odds.under_odds && ((game.odds.under_odds > 0 ? '+' : '') + game.odds.under_odds)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Opening/Closing Total */}
+                    {(game.odds.open_total || game.odds.close_total) && (
+                      <div className="text-xs text-gray-500 space-y-1">
+                        {game.odds.open_total && (
+                          <div>Opening: {game.odds.open_total}</div>
+                        )}
+                        {game.odds.close_total && game.odds.close_total !== game.odds.over_under && (
+                          <div>Closing: {game.odds.close_total}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Post-Game Result */}
+                    {game.is_completed && game.odds.over_under_result && (
+                      <div className="text-center">
+                        <div className="text-xs text-gray-600 mb-1">
+                          Total Score: {game.home_score + game.away_score}
+                        </div>
+                        <div className="text-sm font-semibold">
+                          {game.odds.over_under_result === 'over' ? (
+                            <span className="text-green-600">✓ Over</span>
+                          ) : game.odds.over_under_result === 'under' ? (
+                            <span className="text-red-600">✓ Under</span>
+                          ) : (
+                            <span className="text-gray-600">Push</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

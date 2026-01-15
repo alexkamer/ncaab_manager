@@ -731,6 +731,17 @@ async def get_game_detail(event_id: int):
         if prediction:
             game_dict["prediction"] = dict_from_row(prediction)
 
+        # Get odds if available
+        cursor.execute("""
+            SELECT * FROM game_odds
+            WHERE event_id = ?
+            ORDER BY provider_priority ASC
+            LIMIT 1
+        """, (event_id,))
+        odds = cursor.fetchone()
+        if odds:
+            game_dict["odds"] = dict_from_row(odds)
+
         return game_dict
 
 
