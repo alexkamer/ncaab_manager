@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -50,6 +50,10 @@ export default function GameFlow({
   const [hoveredPlay, setHoveredPlay] = useState<Play | null>(null);
   const [mouseX, setMouseX] = useState<number | null>(null);
   const [runsExpanded, setRunsExpanded] = useState(false);
+
+  // Throttle ref to limit mouse move handler execution
+  const lastCallTime = useRef<number>(0);
+  const THROTTLE_MS = 16; // ~60fps
 
   useEffect(() => {
     async function fetchPlayByPlay() {
@@ -201,7 +205,16 @@ export default function GameFlow({
   // Calculate total game time for X-axis scaling
   const totalGameTime = scoringPlays.length > 0 ? getGameTimeInSeconds(scoringPlays[scoringPlays.length - 1]) : 2400;
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Throttled mouse move handler to reduce expensive calculations
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const now = Date.now();
+
+    // Throttle: only execute if enough time has passed
+    if (now - lastCallTime.current < THROTTLE_MS) {
+      return;
+    }
+    lastCallTime.current = now;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
 
@@ -234,7 +247,7 @@ export default function GameFlow({
       setHoveredPlay(null);
       setMouseX(null);
     }
-  };
+  }, [scoringPlays, totalGameTime]);
 
   const handleMouseLeave = () => {
     setHoveredPlay(null);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import DateCarousel from "./DateCarousel";
 
@@ -48,7 +48,8 @@ function getGameStatus(game: Game): GameStatus {
   return 'upcoming';
 }
 
-function GameCard({ game, expanded, onToggle }: { game: Game; expanded: boolean; onToggle: () => void }) {
+// Memoize GameCard to prevent unnecessary re-renders in game lists
+const GameCard = memo(function GameCard({ game, expanded, onToggle }: { game: Game; expanded: boolean; onToggle: () => void }) {
   const awayWon = game.is_completed && (game.away_score || 0) > (game.home_score || 0);
   const homeWon = game.is_completed && (game.home_score || 0) > (game.away_score || 0);
   const status = getGameStatus(game);
@@ -251,7 +252,7 @@ function GameCard({ game, expanded, onToggle }: { game: Game; expanded: boolean;
       </div>
     </div>
   );
-}
+});
 
 export default function GamesPage() {
   const searchParams = useSearchParams();
