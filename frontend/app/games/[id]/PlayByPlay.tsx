@@ -179,58 +179,105 @@ export default function PlayByPlay({
                   const isHomeTeam = play.team === String(homeTeamId);
                   const teamColor = isAwayTeam ? awayTeamColor : isHomeTeam ? homeTeamColor : null;
 
+                  // Check for lead change
+                  const prevPlay = idx > 0 ? periodPlays[idx - 1] : null;
+                  const isLeadChange = prevPlay &&
+                    ((prevPlay.awayScore > prevPlay.homeScore && play.awayScore < play.homeScore) ||
+                     (prevPlay.awayScore < prevPlay.homeScore && play.awayScore > play.homeScore) ||
+                     (prevPlay.awayScore === prevPlay.homeScore && play.awayScore !== play.homeScore));
+
+                  // Calculate score differential
+                  const scoreDiff = Math.abs(play.awayScore - play.homeScore);
+                  const leadingTeam = play.awayScore > play.homeScore ? awayTeamAbbr :
+                                      play.homeScore > play.awayScore ? homeTeamAbbr : null;
+
                   return (
                     <div
                       key={play.id}
                       onClick={() => onPlayClick?.(play.id)}
-                      className={`px-6 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                      className={`px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
                         onPlayClick ? 'cursor-pointer' : ''
-                      } ${play.scoringPlay ? 'bg-blue-50/30' : ''}`}
+                      } ${play.scoringPlay && teamColor ? `bg-[#${teamColor}]/5` : ''} ${
+                        idx % 2 === 0 ? 'bg-gray-50/30' : 'bg-white'
+                      }`}
                     >
                       <div className="flex items-start gap-4">
                         {/* Time */}
-                        <div className="flex-shrink-0 w-16 text-sm font-medium text-gray-600">
-                          {play.clock}
+                        <div className="flex-shrink-0 w-16">
+                          <div className="text-sm font-bold text-gray-900">
+                            {play.clock}
+                          </div>
+                          {isLeadChange && (
+                            <div className="text-xs font-semibold text-orange-600 mt-0.5">
+                              LEAD
+                            </div>
+                          )}
                         </div>
 
                         {/* Team Logo */}
-                        <div className="flex-shrink-0 w-8 h-8">
+                        <div className="flex-shrink-0 w-10 h-10">
                           {isAwayTeam && (
                             <img
                               src={`https://a.espncdn.com/i/teamlogos/ncaa/500/${awayTeamId}.png`}
                               alt={awayTeamAbbr}
-                              className="w-8 h-8"
+                              className="w-10 h-10 rounded-full border-2"
+                              style={{ borderColor: `#${awayTeamColor}` }}
                             />
                           )}
                           {isHomeTeam && (
                             <img
                               src={`https://a.espncdn.com/i/teamlogos/ncaa/500/${homeTeamId}.png`}
                               alt={homeTeamAbbr}
-                              className="w-8 h-8"
+                              className="w-10 h-10 rounded-full border-2"
+                              style={{ borderColor: `#${homeTeamColor}` }}
                             />
                           )}
                           {!isAwayTeam && !isHomeTeam && (
-                            <div className="w-8 h-8" />
+                            <div className="w-10 h-10" />
                           )}
                         </div>
 
                         {/* Play description */}
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm text-gray-900 break-words">
+                          <div className="text-sm text-gray-900 break-words leading-relaxed">
                             {play.text}
                           </div>
                           {play.scoringPlay && (
-                            <div className="mt-1 text-xs font-medium text-blue-600">
-                              +{play.scoreValue} points
+                            <div className="mt-2 flex items-center gap-2">
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold text-white"
+                                style={{ backgroundColor: teamColor ? `#${teamColor}` : '#3b82f6' }}
+                              >
+                                +{play.scoreValue}
+                              </span>
+                              {play.scoreValue === 3 && (
+                                <span className="text-xs font-medium text-gray-600">3PT</span>
+                              )}
+                              {play.scoreValue === 2 && (
+                                <span className="text-xs font-medium text-gray-600">2PT</span>
+                              )}
+                              {play.scoreValue === 1 && (
+                                <span className="text-xs font-medium text-gray-600">FT</span>
+                              )}
                             </div>
                           )}
                         </div>
 
                         {/* Score */}
-                        <div className="flex-shrink-0 text-right">
-                          <div className="text-sm font-bold text-gray-900">
+                        <div className="flex-shrink-0 text-right min-w-[80px]">
+                          <div className="text-lg font-bold text-gray-900">
                             {play.awayScore}-{play.homeScore}
                           </div>
+                          {leadingTeam && scoreDiff > 0 && (
+                            <div className="text-xs font-medium text-gray-600 mt-0.5">
+                              {leadingTeam} by {scoreDiff}
+                            </div>
+                          )}
+                          {!leadingTeam && (
+                            <div className="text-xs font-medium text-gray-500 mt-0.5">
+                              Tied
+                            </div>
+                          )}
                           {play.homeWinPercentage !== undefined && play.homeWinPercentage !== null && (
                             <div className="text-xs text-gray-500 mt-1">
                               {awayTeamAbbr} {((1 - play.homeWinPercentage) * 100).toFixed(0)}%
