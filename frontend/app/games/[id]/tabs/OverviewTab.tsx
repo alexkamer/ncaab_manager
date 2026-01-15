@@ -66,14 +66,7 @@ export default function OverviewTab({
 
   const currentStatType = statTypes.find(s => s.value === selectedStatType) || statTypes[0];
 
-  // Helper function to get dynamic font size based on name length
-  const getNameFontSize = (name: string) => {
-    const length = name.length;
-    if (length <= 12) return 'text-base'; // 16px
-    if (length <= 16) return 'text-sm'; // 14px
-    if (length <= 20) return 'text-xs'; // 12px
-    return 'text-[11px]'; // 11px for very long names
-  };
+  // Helper function to get dynamic font size based on name length - removed, using responsive sizing instead
 
   // Format stat value based on type
   const formatStatValue = (value: number, statType: string) => {
@@ -129,7 +122,7 @@ export default function OverviewTab({
                     <img src={awayTeam.logo} alt={awayTeam.name} className="w-10 h-10 flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0 mr-4">
-                    <p className={`font-semibold text-gray-900 truncate ${getNameFontSize(teamLeaders.away[0].name)}`}>
+                    <p className="font-semibold text-gray-900 leading-tight" style={{ fontSize: 'clamp(0.625rem, 2.5vw, 1rem)' }}>
                       {teamLeaders.away[0].name}
                     </p>
                     <p className="text-xs text-gray-500">{awayTeam.abbr}</p>
@@ -161,7 +154,7 @@ export default function OverviewTab({
                     <img src={homeTeam.logo} alt={homeTeam.name} className="w-10 h-10 flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0 mr-4">
-                    <p className={`font-semibold text-gray-900 truncate ${getNameFontSize(teamLeaders.home[0].name)}`}>
+                    <p className="font-semibold text-gray-900 leading-tight" style={{ fontSize: 'clamp(0.625rem, 2.5vw, 1rem)' }}>
                       {teamLeaders.home[0].name}
                     </p>
                     <p className="text-xs text-gray-500">{homeTeam.abbr}</p>
