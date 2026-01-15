@@ -330,6 +330,171 @@ export default async function GameDetailPage({
         </div>
       )}
 
+      {/* Game Flow Visualization */}
+      {game.is_completed && game.home_line_scores && game.away_line_scores &&
+       game.home_line_scores.length > 0 && game.away_line_scores.length > 0 && (
+        <div className="border border-gray-200">
+          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900">Game Flow</h2>
+          </div>
+          <div className="p-6">
+            {(() => {
+              // Calculate running scores for each period
+              const periods = game.home_line_scores.length;
+              let awayRunningScores = [0];
+              let homeRunningScores = [0];
+
+              for (let i = 0; i < periods; i++) {
+                awayRunningScores.push(awayRunningScores[i] + parseInt(game.away_line_scores[i]));
+                homeRunningScores.push(homeRunningScores[i] + parseInt(game.home_line_scores[i]));
+              }
+
+              const maxScore = Math.max(...awayRunningScores, ...homeRunningScores);
+              const periodLabels = ['Start', ...Array.from({ length: periods }, (_, i) =>
+                i === 0 ? '1st' : i === 1 ? '2nd' : `OT${i - 1}`
+              )];
+
+              return (
+                <div className="space-y-4">
+                  {/* Score progression chart */}
+                  <div className="relative" style={{ height: '300px' }}>
+                    {/* Y-axis labels */}
+                    <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between text-xs text-gray-500 pr-2 text-right">
+                      <span>{maxScore}</span>
+                      <span>{Math.floor(maxScore * 0.75)}</span>
+                      <span>{Math.floor(maxScore * 0.5)}</span>
+                      <span>{Math.floor(maxScore * 0.25)}</span>
+                      <span>0</span>
+                    </div>
+
+                    {/* Chart area */}
+                    <div className="absolute left-12 right-0 top-0 bottom-8">
+                      {/* Grid lines */}
+                      <div className="absolute inset-0">
+                        {[0, 25, 50, 75, 100].map((pct) => (
+                          <div
+                            key={pct}
+                            className="absolute w-full border-t border-gray-200"
+                            style={{ bottom: `${pct}%` }}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Away team line */}
+                      <svg className="absolute inset-0" preserveAspectRatio="none">
+                        <polyline
+                          points={awayRunningScores.map((score, idx) => {
+                            const x = (idx / periods) * 100;
+                            const y = 100 - (score / maxScore * 100);
+                            return `${x}%,${y}%`;
+                          }).join(' ')}
+                          fill="none"
+                          stroke="rgb(37, 99, 235)"
+                          strokeWidth="3"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        {awayRunningScores.map((score, idx) => {
+                          const x = (idx / periods) * 100;
+                          const y = 100 - (score / maxScore * 100);
+                          return (
+                            <circle
+                              key={`away-${idx}`}
+                              cx={`${x}%`}
+                              cy={`${y}%`}
+                              r="4"
+                              fill="rgb(37, 99, 235)"
+                            />
+                          );
+                        })}
+                      </svg>
+
+                      {/* Home team line */}
+                      <svg className="absolute inset-0" preserveAspectRatio="none">
+                        <polyline
+                          points={homeRunningScores.map((score, idx) => {
+                            const x = (idx / periods) * 100;
+                            const y = 100 - (score / maxScore * 100);
+                            return `${x}%,${y}%`;
+                          }).join(' ')}
+                          fill="none"
+                          stroke="rgb(220, 38, 38)"
+                          strokeWidth="3"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                        {homeRunningScores.map((score, idx) => {
+                          const x = (idx / periods) * 100;
+                          const y = 100 - (score / maxScore * 100);
+                          return (
+                            <circle
+                              key={`home-${idx}`}
+                              cx={`${x}%`}
+                              cy={`${y}%`}
+                              r="4"
+                              fill="rgb(220, 38, 38)"
+                            />
+                          );
+                        })}
+                      </svg>
+                    </div>
+
+                    {/* X-axis labels */}
+                    <div className="absolute left-12 right-0 bottom-0 h-8 flex justify-between text-xs text-gray-500">
+                      {periodLabels.map((label, idx) => (
+                        <span key={idx} className="flex-1 text-center">{label}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex items-center justify-center space-x-6 pt-4 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 bg-blue-600 rounded"></div>
+                      <img src={game.away_team_logo} alt="" className="w-5 h-5" />
+                      <span className="text-sm font-medium text-gray-700">{game.away_team_name}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 bg-red-600 rounded"></div>
+                      <img src={game.home_team_logo} alt="" className="w-5 h-5" />
+                      <span className="text-sm font-medium text-gray-700">{game.home_team_name}</span>
+                    </div>
+                  </div>
+
+                  {/* Period-by-period breakdown */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4">
+                    {game.away_line_scores.map((awayScore, idx) => {
+                      const homeScore = parseInt(game.home_line_scores![idx]);
+                      const awaySc = parseInt(awayScore);
+                      const periodLabel = idx === 0 ? '1st Half' : idx === 1 ? '2nd Half' : `OT ${idx - 1}`;
+
+                      return (
+                        <div key={idx} className="bg-gray-50 border border-gray-200 rounded p-3">
+                          <div className="text-xs font-semibold text-gray-500 uppercase mb-2">{periodLabel}</div>
+                          <div className="flex justify-between items-center">
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600">{game.away_team_abbr}</div>
+                              <div className={`text-xl font-bold ${awaySc > homeScore ? 'text-gray-900' : 'text-gray-400'}`}>
+                                {awayScore}
+                              </div>
+                            </div>
+                            <div className="text-gray-400">-</div>
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600">{game.home_team_abbr}</div>
+                              <div className={`text-xl font-bold ${homeScore > awaySc ? 'text-gray-900' : 'text-gray-400'}`}>
+                                {homeScore}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Game Predictions */}
       {game.prediction && (
         <div className="border border-gray-200">
@@ -999,6 +1164,335 @@ export default async function GameDetailPage({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Shooting Efficiency Visualization */}
+      {game.is_completed && game.team_stats && game.team_stats.length === 2 && (
+        <>
+          {(() => {
+            const awayStats = game.team_stats.find((t: any) => t.homeAway === 'away' || t.home_away === 'away');
+            const homeStats = game.team_stats.find((t: any) => t.homeAway === 'home' || t.home_away === 'home');
+
+            if (!awayStats || !homeStats) return null;
+
+            const isESPNFormat = awayStats.statistics !== undefined;
+
+            // Extract shooting stats
+            let awayFGPct, homeFGPct, away3PPct, home3PPct, awayFTPct, homeFTPct;
+            let awayFGM, awayFGA, homeFGM, homeFGA;
+            let away3PM, away3PA, home3PM, home3PA;
+            let awayFTM, awayFTA, homeFTM, homeFTA;
+
+            if (isESPNFormat) {
+              const getStatValue = (stats: any[], name: string) => {
+                const stat = stats.find((s: any) => s.name === name);
+                return stat?.displayValue || '0';
+              };
+
+              const awayFGStr = getStatValue(awayStats.statistics, 'fieldGoalsMade-fieldGoalsAttempted');
+              const homeFGStr = getStatValue(homeStats.statistics, 'fieldGoalsMade-fieldGoalsAttempted');
+              [awayFGM, awayFGA] = awayFGStr.split('-').map(Number);
+              [homeFGM, homeFGA] = homeFGStr.split('-').map(Number);
+
+              const away3PStr = getStatValue(awayStats.statistics, 'threePointFieldGoalsMade-threePointFieldGoalsAttempted');
+              const home3PStr = getStatValue(homeStats.statistics, 'threePointFieldGoalsMade-threePointFieldGoalsAttempted');
+              [away3PM, away3PA] = away3PStr.split('-').map(Number);
+              [home3PM, home3PA] = home3PStr.split('-').map(Number);
+
+              const awayFTStr = getStatValue(awayStats.statistics, 'freeThrowsMade-freeThrowsAttempted');
+              const homeFTStr = getStatValue(homeStats.statistics, 'freeThrowsMade-freeThrowsAttempted');
+              [awayFTM, awayFTA] = awayFTStr.split('-').map(Number);
+              [homeFTM, homeFTA] = homeFTStr.split('-').map(Number);
+
+              awayFGPct = parseFloat(getStatValue(awayStats.statistics, 'fieldGoalPct'));
+              homeFGPct = parseFloat(getStatValue(homeStats.statistics, 'fieldGoalPct'));
+              away3PPct = parseFloat(getStatValue(awayStats.statistics, 'threePointFieldGoalPct'));
+              home3PPct = parseFloat(getStatValue(homeStats.statistics, 'threePointFieldGoalPct'));
+              awayFTPct = parseFloat(getStatValue(awayStats.statistics, 'freeThrowPct'));
+              homeFTPct = parseFloat(getStatValue(homeStats.statistics, 'freeThrowPct'));
+            } else {
+              awayFGPct = awayStats.field_goal_pct || 0;
+              homeFGPct = homeStats.field_goal_pct || 0;
+              away3PPct = awayStats.three_point_pct || 0;
+              home3PPct = homeStats.three_point_pct || 0;
+              awayFTPct = awayStats.free_throw_pct || 0;
+              homeFTPct = homeStats.free_throw_pct || 0;
+              awayFGM = awayStats.field_goals_made;
+              awayFGA = awayStats.field_goals_attempted;
+              homeFGM = homeStats.field_goals_made;
+              homeFGA = homeStats.field_goals_attempted;
+              away3PM = awayStats.three_point_made;
+              away3PA = awayStats.three_point_attempted;
+              home3PM = homeStats.three_point_made;
+              home3PA = homeStats.three_point_attempted;
+              awayFTM = awayStats.free_throws_made;
+              awayFTA = awayStats.free_throws_attempted;
+              homeFTM = homeStats.free_throws_made;
+              homeFTA = homeStats.free_throws_attempted;
+            }
+
+            // Calculate 2-pointers (FG - 3P)
+            const away2PM = awayFGM - away3PM;
+            const away2PA = awayFGA - away3PA;
+            const home2PM = homeFGM - home3PM;
+            const home2PA = homeFGA - home3PA;
+
+            return (
+              <div className="border border-gray-200">
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                  <h2 className="text-lg font-bold text-gray-900">Shooting Efficiency</h2>
+                </div>
+                <div className="p-6">
+                  <div className="space-y-8">
+                    {/* Shooting Percentages Comparison */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Field Goal % */}
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 text-center">
+                          Field Goal %
+                        </div>
+                        <div className="space-y-3">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center space-x-2 mb-2">
+                              <img src={game.away_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm text-gray-600">{game.away_team_abbr}</span>
+                            </div>
+                            <div className="text-3xl font-bold text-gray-900 mb-2">
+                              {awayFGPct.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">{awayFGM}-{awayFGA}</div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                              <div
+                                className="h-full bg-blue-600 rounded-full transition-all"
+                                style={{ width: `${awayFGPct}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center space-x-2 mb-2">
+                              <img src={game.home_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm text-gray-600">{game.home_team_abbr}</span>
+                            </div>
+                            <div className="text-3xl font-bold text-gray-900 mb-2">
+                              {homeFGPct.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">{homeFGM}-{homeFGA}</div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                              <div
+                                className="h-full bg-red-600 rounded-full transition-all"
+                                style={{ width: `${homeFGPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3-Point % */}
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 text-center">
+                          3-Point %
+                        </div>
+                        <div className="space-y-3">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center space-x-2 mb-2">
+                              <img src={game.away_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm text-gray-600">{game.away_team_abbr}</span>
+                            </div>
+                            <div className="text-3xl font-bold text-gray-900 mb-2">
+                              {away3PPct.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">{away3PM}-{away3PA}</div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                              <div
+                                className="h-full bg-blue-600 rounded-full transition-all"
+                                style={{ width: `${away3PPct}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center space-x-2 mb-2">
+                              <img src={game.home_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm text-gray-600">{game.home_team_abbr}</span>
+                            </div>
+                            <div className="text-3xl font-bold text-gray-900 mb-2">
+                              {home3PPct.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">{home3PM}-{home3PA}</div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                              <div
+                                className="h-full bg-red-600 rounded-full transition-all"
+                                style={{ width: `${home3PPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Free Throw % */}
+                      <div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 text-center">
+                          Free Throw %
+                        </div>
+                        <div className="space-y-3">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center space-x-2 mb-2">
+                              <img src={game.away_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm text-gray-600">{game.away_team_abbr}</span>
+                            </div>
+                            <div className="text-3xl font-bold text-gray-900 mb-2">
+                              {awayFTPct.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">{awayFTM}-{awayFTA}</div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                              <div
+                                className="h-full bg-blue-600 rounded-full transition-all"
+                                style={{ width: `${awayFTPct}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center space-x-2 mb-2">
+                              <img src={game.home_team_logo} alt="" className="w-5 h-5" />
+                              <span className="text-sm text-gray-600">{game.home_team_abbr}</span>
+                            </div>
+                            <div className="text-3xl font-bold text-gray-900 mb-2">
+                              {homeFTPct.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">{homeFTM}-{homeFTA}</div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                              <div
+                                className="h-full bg-red-600 rounded-full transition-all"
+                                style={{ width: `${homeFTPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Shot Distribution Chart */}
+                    <div className="border-t border-gray-200 pt-6">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 text-center">
+                        Points Distribution
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Away Team */}
+                        <div>
+                          <div className="flex items-center justify-center space-x-2 mb-3">
+                            <img src={game.away_team_logo} alt={game.away_team_name} className="w-6 h-6" />
+                            <span className="font-semibold text-gray-900">{game.away_team_name}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {/* 2-Pointers */}
+                            <div className="flex items-center">
+                              <div className="w-24 text-sm text-gray-600">2-Pointers</div>
+                              <div className="flex-1 mx-3">
+                                <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                                  <div
+                                    className="h-full bg-blue-500 flex items-center justify-center text-xs font-semibold text-white"
+                                    style={{ width: `${(away2PM * 2 / game.away_score) * 100}%` }}
+                                  >
+                                    {away2PM * 2} pts
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="w-16 text-sm text-gray-600 text-right">{away2PM}-{away2PA}</div>
+                            </div>
+                            {/* 3-Pointers */}
+                            <div className="flex items-center">
+                              <div className="w-24 text-sm text-gray-600">3-Pointers</div>
+                              <div className="flex-1 mx-3">
+                                <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                                  <div
+                                    className="h-full bg-blue-600 flex items-center justify-center text-xs font-semibold text-white"
+                                    style={{ width: `${(away3PM * 3 / game.away_score) * 100}%` }}
+                                  >
+                                    {away3PM * 3} pts
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="w-16 text-sm text-gray-600 text-right">{away3PM}-{away3PA}</div>
+                            </div>
+                            {/* Free Throws */}
+                            <div className="flex items-center">
+                              <div className="w-24 text-sm text-gray-600">Free Throws</div>
+                              <div className="flex-1 mx-3">
+                                <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                                  <div
+                                    className="h-full bg-blue-700 flex items-center justify-center text-xs font-semibold text-white"
+                                    style={{ width: `${(awayFTM / game.away_score) * 100}%` }}
+                                  >
+                                    {awayFTM} pts
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="w-16 text-sm text-gray-600 text-right">{awayFTM}-{awayFTA}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Home Team */}
+                        <div>
+                          <div className="flex items-center justify-center space-x-2 mb-3">
+                            <img src={game.home_team_logo} alt={game.home_team_name} className="w-6 h-6" />
+                            <span className="font-semibold text-gray-900">{game.home_team_name}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {/* 2-Pointers */}
+                            <div className="flex items-center">
+                              <div className="w-24 text-sm text-gray-600">2-Pointers</div>
+                              <div className="flex-1 mx-3">
+                                <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                                  <div
+                                    className="h-full bg-red-500 flex items-center justify-center text-xs font-semibold text-white"
+                                    style={{ width: `${(home2PM * 2 / game.home_score) * 100}%` }}
+                                  >
+                                    {home2PM * 2} pts
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="w-16 text-sm text-gray-600 text-right">{home2PM}-{home2PA}</div>
+                            </div>
+                            {/* 3-Pointers */}
+                            <div className="flex items-center">
+                              <div className="w-24 text-sm text-gray-600">3-Pointers</div>
+                              <div className="flex-1 mx-3">
+                                <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                                  <div
+                                    className="h-full bg-red-600 flex items-center justify-center text-xs font-semibold text-white"
+                                    style={{ width: `${(home3PM * 3 / game.home_score) * 100}%` }}
+                                  >
+                                    {home3PM * 3} pts
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="w-16 text-sm text-gray-600 text-right">{home3PM}-{home3PA}</div>
+                            </div>
+                            {/* Free Throws */}
+                            <div className="flex items-center">
+                              <div className="w-24 text-sm text-gray-600">Free Throws</div>
+                              <div className="flex-1 mx-3">
+                                <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                                  <div
+                                    className="h-full bg-red-700 flex items-center justify-center text-xs font-semibold text-white"
+                                    style={{ width: `${(homeFTM / game.home_score) * 100}%` }}
+                                  >
+                                    {homeFTM} pts
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="w-16 text-sm text-gray-600 text-right">{homeFTM}-{homeFTA}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </>
       )}
 
       {/* Team Statistics */}
