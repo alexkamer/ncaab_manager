@@ -316,44 +316,83 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
 
       {/* Top Contributors */}
       {leaders.length > 0 && (
-        <div className="border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Top Contributors</h2>
-            <p className="text-sm text-gray-500 mt-1">Ranked by PRA (Points + Rebounds + Assists)</p>
+        <div className="border border-gray-200 overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+            <h2 className="text-2xl font-bold text-gray-900">⭐ Top Contributors</h2>
+            <p className="text-sm text-gray-600 mt-1">Ranked by PRA (Points + Rebounds + Assists)</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
-            {leaders.slice(0, 3).map((leader: any, idx: number) => (
-              <Link
-                key={leader.athlete_id}
-                href={`/players/${leader.athlete_id}`}
-                className="p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-sm text-gray-500">
-                    #{idx + 1} Contributor
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 p-6 bg-gray-50">
+            {leaders.slice(0, 3).map((leader: any, idx: number) => {
+              const rankColors = [
+                { border: 'border-yellow-400', bg: 'bg-gradient-to-br from-yellow-50 to-amber-50', badge: 'bg-yellow-400 text-yellow-900', ring: 'ring-yellow-400' },
+                { border: 'border-gray-300', bg: 'bg-gradient-to-br from-gray-50 to-slate-50', badge: 'bg-gray-300 text-gray-900', ring: 'ring-gray-300' },
+                { border: 'border-orange-300', bg: 'bg-gradient-to-br from-orange-50 to-amber-50', badge: 'bg-orange-300 text-orange-900', ring: 'ring-orange-300' }
+              ];
+              const colors = rankColors[idx];
+
+              return (
+                <Link
+                  key={leader.athlete_id}
+                  href={`/players/${leader.athlete_id}`}
+                  className={`relative p-5 rounded-xl border-2 ${colors.border} ${colors.bg} hover:shadow-xl hover:scale-105 transition-all duration-200 group`}
+                >
+                  {/* Rank Badge */}
+                  <div className={`absolute -top-3 -left-3 w-10 h-10 ${colors.badge} rounded-full flex items-center justify-center text-lg font-bold shadow-lg z-10`}>
+                    {idx + 1}
                   </div>
-                  <div className="text-lg font-bold text-blue-600">
-                    {leader.pra} PRA
+
+                  {/* Player Photo & Info */}
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className={`relative ring-4 ${colors.ring} rounded-full overflow-hidden bg-white flex-shrink-0`}>
+                      {leader.headshot_url ? (
+                        <img
+                          src={leader.headshot_url}
+                          alt={leader.display_name}
+                          className="w-20 h-20 object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                      ) : null}
+                      <div className={`w-20 h-20 flex items-center justify-center bg-gray-200 text-gray-400 text-2xl font-bold ${leader.headshot_url ? 'hidden' : ''}`}>
+                        {leader.display_name?.charAt(0)}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 text-lg leading-tight group-hover:text-blue-600 transition-colors">
+                        {leader.display_name}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-0.5">{leader.position_name}</div>
+                    </div>
                   </div>
-                </div>
-                <div className="font-bold text-gray-900 text-lg">{leader.display_name}</div>
-                <div className="text-sm text-gray-600 mb-2">{leader.position_name}</div>
-                <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                  <div>
-                    <div className="font-bold text-gray-900">{leader.avg_points}</div>
-                    <div className="text-gray-500 text-xs">PPG</div>
+
+                  {/* PRA Score */}
+                  <div className="mb-4 text-center py-3 bg-white rounded-lg shadow-sm border border-gray-200">
+                    <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                      {leader.pra}
+                    </div>
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">PRA</div>
                   </div>
-                  <div>
-                    <div className="font-bold text-gray-900">{leader.avg_rebounds}</div>
-                    <div className="text-gray-500 text-xs">RPG</div>
+
+                  {/* Stats Breakdown */}
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+                      <div className="text-lg font-bold text-gray-900">{leader.avg_points}</div>
+                      <div className="text-xs text-gray-500 font-medium">PPG</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+                      <div className="text-lg font-bold text-gray-900">{leader.avg_rebounds}</div>
+                      <div className="text-xs text-gray-500 font-medium">RPG</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-2 shadow-sm border border-gray-200">
+                      <div className="text-lg font-bold text-gray-900">{leader.avg_assists}</div>
+                      <div className="text-xs text-gray-500 font-medium">APG</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-bold text-gray-900">{leader.avg_assists}</div>
-                    <div className="text-gray-500 text-xs">APG</div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

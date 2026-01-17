@@ -1468,6 +1468,8 @@ async def fetch_team_leaders_from_espn(team_id: int, season: int) -> List[Dict[s
                             'full_name': athlete_data.get('fullName'),
                             'display_name': athlete_data.get('displayName'),
                             'position_name': athlete_data.get('position', {}).get('displayName', ''),
+                            'position_abbr': athlete_data.get('position', {}).get('abbreviation', ''),
+                            'headshot_url': athlete_data.get('headshot', {}).get('href', ''),
                             'avg_points': round(stats['ppg'], 1),
                             'avg_rebounds': round(stats['rpg'], 1),
                             'avg_assists': round(stats['apg'], 1),
