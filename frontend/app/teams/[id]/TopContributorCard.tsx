@@ -35,49 +35,41 @@ export default function TopContributorCard({ leader, idx }: { leader: Leader; id
       </div>
 
       {/* Player Photo & Info */}
-      <div className="flex items-start gap-4 mb-4">
+      <div className="flex items-center gap-4 mb-5">
         <div className={`relative ring-4 ${colors.ring} rounded-full overflow-hidden bg-white flex-shrink-0`}>
           {leader.headshot_url && !imageError ? (
             <img
               src={leader.headshot_url}
               alt={leader.display_name}
-              className="w-20 h-20 object-cover"
+              className="w-24 h-24 object-cover"
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-20 h-20 flex items-center justify-center bg-gray-200 text-gray-400 text-2xl font-bold">
+            <div className="w-24 h-24 flex items-center justify-center bg-gray-200 text-gray-400 text-3xl font-bold">
               {leader.display_name?.charAt(0)}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-bold text-gray-900 text-lg leading-tight group-hover:text-blue-600 transition-colors">
+          <div className="font-bold text-gray-900 text-xl leading-tight group-hover:text-blue-600 transition-colors">
             {leader.display_name}
           </div>
-          <div className="text-sm text-gray-600 mt-0.5">{leader.position_name}</div>
+          <div className="text-sm text-gray-600 mt-1">{leader.position_name}</div>
         </div>
-      </div>
-
-      {/* PRA Score */}
-      <div className="mb-4 text-center py-3 bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-          {leader.pra}
-        </div>
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">PRA</div>
       </div>
 
       {/* Stats Breakdown */}
       <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="bg-white rounded-lg p-2 shadow-sm border border-gray-200">
-          <div className="text-lg font-bold text-gray-900">{leader.avg_points}</div>
+        <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
+          <div className="text-2xl font-bold text-gray-900">{leader.avg_points}</div>
           <div className="text-xs text-gray-500 font-medium">PPG</div>
         </div>
-        <div className="bg-white rounded-lg p-2 shadow-sm border border-gray-200">
-          <div className="text-lg font-bold text-gray-900">{leader.avg_rebounds}</div>
+        <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
+          <div className="text-2xl font-bold text-gray-900">{leader.avg_rebounds}</div>
           <div className="text-xs text-gray-500 font-medium">RPG</div>
         </div>
-        <div className="bg-white rounded-lg p-2 shadow-sm border border-gray-200">
-          <div className="text-lg font-bold text-gray-900">{leader.avg_assists}</div>
+        <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-200">
+          <div className="text-2xl font-bold text-gray-900">{leader.avg_assists}</div>
           <div className="text-xs text-gray-500 font-medium">APG</div>
         </div>
       </div>

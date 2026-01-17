@@ -320,7 +320,7 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
         <div className="border border-gray-200 overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
             <h2 className="text-2xl font-bold text-gray-900">⭐ Top Contributors</h2>
-            <p className="text-sm text-gray-600 mt-1">Ranked by PRA (Points + Rebounds + Assists)</p>
+            <p className="text-sm text-gray-600 mt-1">Team's top 3 overall performers</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 p-6 bg-gray-50">
             {leaders.slice(0, 3).map((leader: any, idx: number) => (
