@@ -38,7 +38,7 @@ interface Conference {
 async function getStandings() {
   try {
     const res = await fetch(`${API_BASE}/api/standings?season=2026`, {
-      next: { revalidate: 60 }
+      cache: 'no-store'
     });
     if (!res.ok) return { standings: [] };
     const data = await res.json();
@@ -52,7 +52,7 @@ async function getStandings() {
 async function getConferences() {
   try {
     const res = await fetch(`${API_BASE}/api/conferences`, {
-      next: { revalidate: 3600 }
+      cache: 'no-store'
     });
     if (!res.ok) return { conferences: [] };
     const data = await res.json();

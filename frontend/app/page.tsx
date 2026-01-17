@@ -15,9 +15,11 @@ interface Game {
   home_team_name: string;
   home_team_abbr: string;
   home_team_logo: string;
+  home_team_id?: number;
   away_team_name: string;
   away_team_abbr: string;
   away_team_logo: string;
+  away_team_id?: number;
   venue_name: string;
   season_year: number;
 }
@@ -26,7 +28,7 @@ async function getLiveGames() {
   try {
     // Fetch live/upcoming games directly from ESPN via API
     const res = await fetch(`${API_BASE}/api/games/live?days_ahead=7`, {
-      next: { revalidate: 60 } // Cache for 1 minute
+      cache: 'no-store'
     });
     if (!res.ok) return { games: [] };
     const data = await res.json();
@@ -41,7 +43,7 @@ async function getRecentGames() {
   try {
     // Fetch completed games from database for "Recent Results"
     const res = await fetch(`${API_BASE}/api/games?season=2026&limit=20`, {
-      next: { revalidate: 300 } // Cache for 5 minutes
+      cache: 'no-store'
     });
     if (!res.ok) return { games: [] };
     const data = await res.json();
@@ -55,7 +57,7 @@ async function getRecentGames() {
 async function getRankings() {
   try {
     const res = await fetch(`${API_BASE}/api/rankings?season=2026&ranking_type=ap`, {
-      next: { revalidate: 3600 }
+      cache: 'no-store'
     });
     if (!res.ok) return { rankings: [] };
     const data = await res.json();
@@ -76,8 +78,8 @@ function GameCard({ game, rankingMap }: { game: Game; rankingMap?: Map<number, n
   const homeWon = game.is_completed && (game.home_score || 0) > (game.away_score || 0);
 
   // Get rankings
-  const awayRank = rankingMap?.get(game.away_team_id);
-  const homeRank = rankingMap?.get(game.home_team_id);
+  const awayRank = game.away_team_id ? rankingMap?.get(game.away_team_id) : undefined;
+  const homeRank = game.home_team_id ? rankingMap?.get(game.home_team_id) : undefined;
 
   // Calculate relative time
   const getRelativeTime = () => {
@@ -172,7 +174,7 @@ export default async function Home() {
   const topRankings = rankingsData.rankings.slice(0, 25);
 
   // Create ranking lookup map
-  const rankingMap = new Map(topRankings.map((r: any) => [r.team_id, r.current_rank]));
+  const rankingMap = new Map<number, number>(topRankings.map((r: any) => [r.team_id, r.current_rank]));
 
   // Separate live/upcoming games by status
   const liveGames = liveAndUpcomingGames.filter((g: Game) =>
@@ -188,8 +190,8 @@ export default async function Home() {
     let score = 0;
 
     // Get rankings
-    const homeRank = rankingMap.get(game.home_team_id);
-    const awayRank = rankingMap.get(game.away_team_id);
+    const homeRank = game.home_team_id ? rankingMap.get(game.home_team_id) : undefined;
+    const awayRank = game.away_team_id ? rankingMap.get(game.away_team_id) : undefined;
 
     // Ranking score (granular based on actual ranks)
     if (homeRank && awayRank) {
@@ -236,16 +238,16 @@ export default async function Home() {
   };
 
   // Score all games
-  const scoredLiveGames = liveGames.map(g => ({ game: g, score: calculateGameScore(g, true), isLive: true }));
-  const scoredUpcomingGames = upcomingGames.map(g => ({ game: g, score: calculateGameScore(g, false), isLive: false }));
+  const scoredLiveGames = liveGames.map((g: Game) => ({ game: g, score: calculateGameScore(g, true), isLive: true }));
+  const scoredUpcomingGames = upcomingGames.map((g: Game) => ({ game: g, score: calculateGameScore(g, false), isLive: false }));
 
   // Sort by score
-  scoredLiveGames.sort((a, b) => b.score - a.score);
-  scoredUpcomingGames.sort((a, b) => b.score - a.score);
+  scoredLiveGames.sort((a: any, b: any) => b.score - a.score);
+  scoredUpcomingGames.sort((a: any, b: any) => b.score - a.score);
 
   // Quality threshold - only "quality" games have score > 50
-  const qualityLiveGames = scoredLiveGames.filter(g => g.score > 50);
-  const nonQualityLiveGames = scoredLiveGames.filter(g => g.score <= 50);
+  const qualityLiveGames = scoredLiveGames.filter((g: any) => g.score > 50);
+  const nonQualityLiveGames = scoredLiveGames.filter((g: any) => g.score <= 50);
 
   // Build featured list: all quality live games + at least 1 non-quality live (if exists)
   let featured = [
@@ -257,8 +259,8 @@ export default async function Home() {
   featured = [...featured, ...scoredUpcomingGames];
 
   // Determine count based on quality + volume
-  const qualityCount = scoredLiveGames.filter(g => g.score > 80).length +
-                       scoredUpcomingGames.filter(g => g.score > 80).length;
+  const qualityCount = scoredLiveGames.filter((g: any) => g.score > 80).length +
+                       scoredUpcomingGames.filter((g: any) => g.score > 80).length;
   const totalGames = liveAndUpcomingGames.length;
 
   let targetCount = 3; // Minimum
