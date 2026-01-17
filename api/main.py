@@ -3061,6 +3061,353 @@ def get_strategy_examples(strategy_id: str, limit: int = 10):
         }
 
 
+@app.get("/api/teams-ats")
+def get_teams_ats(season_id: int = None, min_games: int = 5):
+    """
+    Get all teams' Against The Spread (ATS) records.
+
+    IMPORTANT: By default, this returns ALL-TIME ATS records across ALL seasons in the database.
+    This is intentional to show teams' full historical ATS performance, not just current season.
+
+    Returns teams ranked by ATS win percentage.
+
+    CORRECT SPREAD LOGIC:
+    If a team has +4.5 spread and loses by 3: coverMargin = -3 + 4.5 = +1.5 (covered)
+    Formula: coverMargin = actualMargin + spread
+
+    Args:
+        season_id: Optional season ID to filter (e.g., 2026). If None, uses ALL seasons.
+        min_games: Minimum games with spread to include team (default: 5)
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Get all teams' ATS records
+        # Spread is from home team's perspective, so for away teams we negate it
+        if season_id is not None:
+            # Filter by specific season
+            cursor.execute("""
+                SELECT
+                    t.team_id,
+                    t.display_name as team_name,
+                    t.abbreviation as team_abbr,
+                    t.logo_url as team_logo,
+                    t.color as team_color
+                FROM teams t
+                WHERE t.team_id IN (
+                    SELECT DISTINCT home_team_id FROM events WHERE season_id = ?
+                    UNION
+                    SELECT DISTINCT away_team_id FROM events WHERE season_id = ?
+                )
+            """, (season_id, season_id))
+        else:
+            # Get all teams that have played games (across all seasons)
+            cursor.execute("""
+                SELECT
+                    t.team_id,
+                    t.display_name as team_name,
+                    t.abbreviation as team_abbr,
+                    t.logo_url as team_logo,
+                    t.color as team_color
+                FROM teams t
+                WHERE t.team_id IN (
+                    SELECT DISTINCT home_team_id FROM events
+                    UNION
+                    SELECT DISTINCT away_team_id FROM events
+                )
+            """)
+
+        teams = []
+        all_teams = [dict_from_row(row) for row in cursor.fetchall()]
+
+        for team in all_teams:
+            team_id = team['team_id']
+
+            # Get games with spreads for this team
+            # Simple JOIN like team detail API - duplicates handled by deduplication code below
+            if season_id is not None:
+                cursor.execute("""
+                    SELECT
+                        e.event_id,
+                        e.home_team_id,
+                        e.away_team_id,
+                        e.home_score,
+                        e.away_score,
+                        o.spread
+                    FROM events e
+                    LEFT JOIN game_odds o ON e.event_id = o.event_id
+                    WHERE e.is_completed = 1
+                        AND e.season_id = ?
+                        AND (e.home_team_id = ? OR e.away_team_id = ?)
+                        AND e.home_score IS NOT NULL
+                        AND e.away_score IS NOT NULL
+                        AND o.spread IS NOT NULL
+                    ORDER BY e.event_id, o.odds_id
+                """, (season_id, team_id, team_id))
+            else:
+                # Get ALL completed games with spreads (all seasons)
+                cursor.execute("""
+                    SELECT
+                        e.event_id,
+                        e.home_team_id,
+                        e.away_team_id,
+                        e.home_score,
+                        e.away_score,
+                        o.spread
+                    FROM events e
+                    LEFT JOIN game_odds o ON e.event_id = o.event_id
+                    WHERE e.is_completed = 1
+                        AND (e.home_team_id = ? OR e.away_team_id = ?)
+                        AND e.home_score IS NOT NULL
+                        AND e.away_score IS NOT NULL
+                        AND o.spread IS NOT NULL
+                    ORDER BY e.event_id, o.odds_id
+                """, (team_id, team_id))
+
+            games_raw = [dict_from_row(row) for row in cursor.fetchall()]
+
+            # Deduplicate games by event_id (in case multiple odds providers have same priority)
+            games_dict = {}
+            for game in games_raw:
+                event_id = game['event_id']
+                if event_id not in games_dict:
+                    games_dict[event_id] = game
+            games = list(games_dict.values())
+
+            if len(games) < min_games:
+                continue
+
+            # Calculate ATS record
+            ats_wins = 0
+            ats_losses = 0
+            ats_pushes = 0
+            cover_margins = []
+
+            for game in games:
+                # Determine if team is home or away
+                is_home = game['home_team_id'] == team_id
+
+                # Calculate actual margin from team's perspective
+                if is_home:
+                    actual_margin = game['home_score'] - game['away_score']
+                else:
+                    actual_margin = game['away_score'] - game['home_score']
+
+                # Spread from THIS team's perspective
+                # Database stores spread from HOME team's perspective, so flip it for away teams
+                # Example: If home team spread is -10 (home favored by 10), away team gets +10
+                if is_home:
+                    team_spread = game['spread']
+                else:
+                    team_spread = -game['spread']
+
+                # Calculate cover margin using formula: actualMargin + spread (from team's perspective)
+                cover_margin = actual_margin + team_spread
+                cover_margins.append(cover_margin)
+
+                if cover_margin > 0:
+                    ats_wins += 1
+                elif cover_margin < 0:
+                    ats_losses += 1
+                else:
+                    ats_pushes += 1
+
+            # Calculate ATS percentage (excluding pushes)
+            games_for_pct = len(games) - ats_pushes
+            ats_win_pct = round((ats_wins / games_for_pct) * 100, 1) if games_for_pct > 0 else 0.0
+
+            # Calculate average cover margin
+            avg_cover_margin = round(sum(cover_margins) / len(cover_margins), 1) if cover_margins else 0.0
+
+            team['total_games'] = len(games)
+            team['games_with_spread'] = len(games)
+            team['ats_wins'] = ats_wins
+            team['ats_losses'] = ats_losses
+            team['ats_pushes'] = ats_pushes
+            team['ats_win_pct'] = ats_win_pct
+            team['avg_cover_margin'] = avg_cover_margin
+
+            teams.append(team)
+
+        # Sort by ATS win percentage
+        teams.sort(key=lambda x: (x['ats_win_pct'], x['games_with_spread']), reverse=True)
+
+        return {
+            "teams": teams,
+            "season_id": season_id,
+            "all_time": season_id is None,
+            "min_games": min_games,
+            "total_teams": len(teams),
+            "note": "ATS Win % excludes pushes. Cover margin uses formula: actualMargin + spread. " +
+                    ("ALL-TIME records across all seasons." if season_id is None else f"Season {season_id} only.")
+        }
+
+
+@app.get("/api/teams-over-under")
+def get_teams_over_under(season_id: int = None, min_games: int = 5):
+    """
+    Get all teams' Over/Under records.
+
+    IMPORTANT: By default, this returns ALL-TIME O/U records across ALL seasons in the database.
+    This is intentional to show teams' full historical O/U performance, not just current season.
+
+    Returns teams ranked by Over percentage.
+
+    CORRECT O/U LOGIC:
+    If actual total (home_score + away_score) > over_under line: game went OVER
+    If actual total < over_under line: game went UNDER
+    If actual total = over_under line: PUSH
+
+    Args:
+        season_id: Optional season ID to filter (e.g., 2026). If None, uses ALL seasons.
+        min_games: Minimum games with O/U line to include team (default: 5)
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Get all teams
+        if season_id is not None:
+            cursor.execute("""
+                SELECT
+                    t.team_id,
+                    t.display_name as team_name,
+                    t.abbreviation as team_abbr,
+                    t.logo_url as team_logo,
+                    t.color as team_color
+                FROM teams t
+                WHERE t.team_id IN (
+                    SELECT DISTINCT home_team_id FROM events WHERE season_id = ?
+                    UNION
+                    SELECT DISTINCT away_team_id FROM events WHERE season_id = ?
+                )
+            """, (season_id, season_id))
+        else:
+            cursor.execute("""
+                SELECT
+                    t.team_id,
+                    t.display_name as team_name,
+                    t.abbreviation as team_abbr,
+                    t.logo_url as team_logo,
+                    t.color as team_color
+                FROM teams t
+                WHERE t.team_id IN (
+                    SELECT DISTINCT home_team_id FROM events
+                    UNION
+                    SELECT DISTINCT away_team_id FROM events
+                )
+            """)
+
+        teams = []
+        all_teams = [dict_from_row(row) for row in cursor.fetchall()]
+
+        for team in all_teams:
+            team_id = team['team_id']
+
+            # Get games with over/under lines for this team
+            if season_id is not None:
+                cursor.execute("""
+                    SELECT
+                        e.event_id,
+                        e.home_team_id,
+                        e.away_team_id,
+                        e.home_score,
+                        e.away_score,
+                        o.over_under
+                    FROM events e
+                    LEFT JOIN game_odds o ON e.event_id = o.event_id
+                    WHERE e.is_completed = 1
+                        AND e.season_id = ?
+                        AND (e.home_team_id = ? OR e.away_team_id = ?)
+                        AND e.home_score IS NOT NULL
+                        AND e.away_score IS NOT NULL
+                        AND o.over_under IS NOT NULL
+                    ORDER BY e.event_id, o.odds_id
+                """, (season_id, team_id, team_id))
+            else:
+                cursor.execute("""
+                    SELECT
+                        e.event_id,
+                        e.home_team_id,
+                        e.away_team_id,
+                        e.home_score,
+                        e.away_score,
+                        o.over_under
+                    FROM events e
+                    LEFT JOIN game_odds o ON e.event_id = o.event_id
+                    WHERE e.is_completed = 1
+                        AND (e.home_team_id = ? OR e.away_team_id = ?)
+                        AND e.home_score IS NOT NULL
+                        AND e.away_score IS NOT NULL
+                        AND o.over_under IS NOT NULL
+                    ORDER BY e.event_id, o.odds_id
+                """, (team_id, team_id))
+
+            games_raw = [dict_from_row(row) for row in cursor.fetchall()]
+
+            # Deduplicate games by event_id (in case multiple odds providers have same priority)
+            games_dict = {}
+            for game in games_raw:
+                event_id = game['event_id']
+                if event_id not in games_dict:
+                    games_dict[event_id] = game
+            games = list(games_dict.values())
+
+            if len(games) < min_games:
+                continue
+
+            # Calculate O/U record
+            overs = 0
+            unders = 0
+            pushes = 0
+            total_margins = []
+
+            for game in games:
+                # Calculate actual total
+                actual_total = game['home_score'] + game['away_score']
+                over_under_line = game['over_under']
+
+                # Calculate margin from line
+                total_margin = actual_total - over_under_line
+                total_margins.append(total_margin)
+
+                if abs(total_margin) < 0.5:
+                    pushes += 1
+                elif total_margin > 0:
+                    overs += 1
+                else:
+                    unders += 1
+
+            # Calculate Over percentage (excluding pushes)
+            games_for_pct = len(games) - pushes
+            over_pct = round((overs / games_for_pct) * 100, 1) if games_for_pct > 0 else 0.0
+
+            # Calculate average total margin
+            avg_total_margin = round(sum(total_margins) / len(total_margins), 1) if total_margins else 0.0
+
+            team['total_games'] = len(games)
+            team['games_with_line'] = len(games)
+            team['overs'] = overs
+            team['unders'] = unders
+            team['pushes'] = pushes
+            team['over_pct'] = over_pct
+            team['avg_total_margin'] = avg_total_margin
+
+            teams.append(team)
+
+        # Sort by Over percentage
+        teams.sort(key=lambda x: (x['over_pct'], x['games_with_line']), reverse=True)
+
+        return {
+            "teams": teams,
+            "season_id": season_id,
+            "all_time": season_id is None,
+            "min_games": min_games,
+            "total_teams": len(teams),
+            "note": "Over % excludes pushes. Margin = actual total - O/U line. " +
+                    ("ALL-TIME records across all seasons." if season_id is None else f"Season {season_id} only.")
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

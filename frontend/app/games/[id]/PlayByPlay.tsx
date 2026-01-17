@@ -284,8 +284,8 @@ export default function PlayByPlay({
                 <PlayGrid
                   plays={filteredPlays}
                   momentumPlayIds={momentumPlayIds}
-                  homeTeamColor={homeTeamColor}
-                  awayTeamColor={awayTeamColor}
+                  homeTeamColor={homeTeamColor || '#000000'}
+                  awayTeamColor={awayTeamColor || '#000000'}
                   homeTeamId={homeTeamId || ""}
                   awayTeamId={awayTeamId || ""}
                   homeTeamLogo={homeTeamLogo}
@@ -301,8 +301,8 @@ export default function PlayByPlay({
                 <div className="p-6">
                   <ShotChart
                     plays={filteredPlays}
-                    homeTeamColor={homeTeamColor}
-                    awayTeamColor={awayTeamColor}
+                    homeTeamColor={homeTeamColor || '#000000'}
+                    awayTeamColor={awayTeamColor || '#000000'}
                     homeTeamId={homeTeamId || ""}
                     awayTeamId={awayTeamId || ""}
                     onPlayClick={(playId) => {
@@ -323,8 +323,8 @@ export default function PlayByPlay({
           play={selectedPlay}
           prevPlays={contextPlays.prev}
           nextPlays={contextPlays.next}
-          homeTeamColor={homeTeamColor}
-          awayTeamColor={awayTeamColor}
+          homeTeamColor={homeTeamColor || '#000000'}
+          awayTeamColor={awayTeamColor || '#000000'}
           homeTeamId={homeTeamId || ""}
           awayTeamId={awayTeamId || ""}
           homeTeamLogo={homeTeamLogo}

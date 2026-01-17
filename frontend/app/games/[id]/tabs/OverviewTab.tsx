@@ -271,13 +271,13 @@ export default function OverviewTab({
         eventId={eventId}
         awayTeamName={awayTeam.name}
         awayTeamAbbr={awayTeam.abbr}
-        awayTeamId={awayTeam.id}
-        awayTeamColor={awayTeam.color}
+        awayTeamId={awayTeam.id || 0}
+        awayTeamColor={awayTeam.color || '#000000'}
         homeTeamName={homeTeam.name}
         homeTeamAbbr={homeTeam.abbr}
-        homeTeamId={homeTeam.id}
-        homeTeamColor={homeTeam.color}
-        isCompleted={isCompleted}
+        homeTeamId={homeTeam.id || 0}
+        homeTeamColor={homeTeam.color || '#000000'}
+        isCompleted={isCompleted || false}
         plays={plays}
       />
 
