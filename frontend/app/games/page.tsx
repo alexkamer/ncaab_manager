@@ -24,6 +24,7 @@ interface Game {
   home_team_rank?: number;
   home_team_ap_rank?: number;
   home_team_id?: number;
+  home_team_division_id?: number;
   away_team_name: string;
   away_team_abbr: string;
   away_team_logo: string;
@@ -32,6 +33,7 @@ interface Game {
   away_team_rank?: number;
   away_team_ap_rank?: number;
   away_team_id?: number;
+  away_team_division_id?: number;
   venue_name: string;
   spread?: number;
   over_under?: number;
@@ -154,7 +156,13 @@ const GameCard = memo(function GameCard({ game, expanded, onToggle }: { game: Ga
                   {game.away_team_ap_rank && game.away_team_ap_rank <= 25 && (
                     <span className="inline-block w-6 text-center font-bold mr-1">#{game.away_team_ap_rank}</span>
                   )}
-                  {game.away_team_name}
+                  {game.away_team_division_id === 50 && game.away_team_id ? (
+                    <Link href={`/teams/${game.away_team_id}`} className="hover:underline">
+                      {game.away_team_name}
+                    </Link>
+                  ) : (
+                    game.away_team_name
+                  )}
                 </div>
                 {game.away_team_record && (
                   <div className="text-xs text-gray-500">
@@ -181,7 +189,13 @@ const GameCard = memo(function GameCard({ game, expanded, onToggle }: { game: Ga
                   {game.home_team_ap_rank && game.home_team_ap_rank <= 25 && (
                     <span className="inline-block w-6 text-center font-bold mr-1">#{game.home_team_ap_rank}</span>
                   )}
-                  {game.home_team_name}
+                  {game.home_team_division_id === 50 && game.home_team_id ? (
+                    <Link href={`/teams/${game.home_team_id}`} className="hover:underline">
+                      {game.home_team_name}
+                    </Link>
+                  ) : (
+                    game.home_team_name
+                  )}
                 </div>
                 {game.home_team_record && (
                   <div className="text-xs text-gray-500">
