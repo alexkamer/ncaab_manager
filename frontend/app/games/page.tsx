@@ -20,6 +20,7 @@ interface Game {
   home_team_abbr: string;
   home_team_logo: string;
   home_team_record?: string;
+  home_team_conf_record?: string;
   home_team_rank?: number;
   home_team_ap_rank?: number;
   home_team_id?: number;
@@ -27,6 +28,7 @@ interface Game {
   away_team_abbr: string;
   away_team_logo: string;
   away_team_record?: string;
+  away_team_conf_record?: string;
   away_team_rank?: number;
   away_team_ap_rank?: number;
   away_team_id?: number;
@@ -34,6 +36,10 @@ interface Game {
   spread?: number;
   over_under?: number;
   favorite_abbr?: string;
+  home_win_probability?: number;
+  away_win_probability?: number;
+  home_predicted_margin?: number;
+  away_predicted_margin?: number;
 }
 
 type GameStatus = 'live' | 'completed' | 'upcoming';
@@ -79,35 +85,52 @@ const GameCard = memo(function GameCard({ game, expanded, onToggle }: { game: Ga
               </span>
             )}
 
-            {/* Conference Badge */}
-            {game.is_conference_game && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded border border-blue-200">
-                CONF
-              </span>
-            )}
-
             {/* Score Differential (for completed games) */}
             {status === 'completed' && scoreDiff > 0 && (
               <span className="px-2 py-1 bg-gray-50 text-gray-600 text-xs font-medium rounded">
                 {scoreDiff > 20 ? 'Blowout' : scoreDiff > 10 ? 'Comfortable' : 'Close'} ({scoreDiff})
               </span>
             )}
-
-            {/* Spread Badge (for upcoming games) */}
-            {status === 'upcoming' && (game.spread !== null && game.spread !== undefined) && (
-              <span className="px-2 py-1 bg-green-100 border border-green-300 rounded text-xs font-bold text-green-800">
-                {game.favorite_abbr} {game.spread > 0 ? '+' : ''}{game.spread}
-              </span>
-            )}
           </div>
 
-          <div className="text-right">
+          <div className="text-right space-y-1">
             <div className="text-xs text-gray-500 truncate max-w-[200px]">
               {game.venue_name}
             </div>
-            {game.over_under && status === 'upcoming' && (
-              <div className="text-xs font-semibold text-gray-700 mt-0.5">
-                O/U {game.over_under}
+
+            {/* Betting Info */}
+            {status === 'upcoming' && (game.spread !== null && game.spread !== undefined || game.over_under || game.is_conference_game || game.home_win_probability) && (
+              <div className="flex items-center justify-end gap-2 text-xs">
+                {game.is_conference_game && (
+                  <span className="text-blue-600 font-medium">CONF</span>
+                )}
+                {game.spread !== null && game.spread !== undefined && game.favorite_abbr && (
+                  <span className="text-gray-700 font-semibold">
+                    {game.favorite_abbr} -{Math.abs(game.spread)}
+                  </span>
+                )}
+                {game.over_under && (
+                  <span className="text-gray-600">
+                    O/U {game.over_under}
+                  </span>
+                )}
+                {game.home_win_probability !== null && game.home_win_probability !== undefined &&
+                 game.away_win_probability !== null && game.away_win_probability !== undefined && (
+                  <span className="text-purple-600 font-medium">
+                    ESPN: {game.home_win_probability > game.away_win_probability
+                      ? `${game.home_team_abbr} ${Math.round(game.home_win_probability)}%${
+                          game.home_predicted_margin !== null && game.home_predicted_margin !== undefined
+                            ? ` (${game.home_predicted_margin > 0 ? '+' : ''}${game.home_predicted_margin.toFixed(1)})`
+                            : ''
+                        }`
+                      : `${game.away_team_abbr} ${Math.round(game.away_win_probability)}%${
+                          game.away_predicted_margin !== null && game.away_predicted_margin !== undefined
+                            ? ` (${game.away_predicted_margin > 0 ? '+' : ''}${game.away_predicted_margin.toFixed(1)})`
+                            : ''
+                        }`
+                    }
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -136,6 +159,9 @@ const GameCard = memo(function GameCard({ game, expanded, onToggle }: { game: Ga
                 {game.away_team_record && (
                   <div className="text-xs text-gray-500">
                     {game.away_team_record}
+                    {!!game.is_conference_game && game.away_team_conf_record && (
+                      <span className="ml-1">({game.away_team_conf_record})</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -160,6 +186,9 @@ const GameCard = memo(function GameCard({ game, expanded, onToggle }: { game: Ga
                 {game.home_team_record && (
                   <div className="text-xs text-gray-500">
                     {game.home_team_record}
+                    {!!game.is_conference_game && game.home_team_conf_record && (
+                      <span className="ml-1">({game.home_team_conf_record})</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -232,8 +261,8 @@ const GameCard = memo(function GameCard({ game, expanded, onToggle }: { game: Ga
               <div>
                 <div className="font-medium text-gray-700 mb-1">Betting</div>
                 <div className="text-xs text-gray-600 space-y-0.5">
-                  {game.spread !== null && game.spread !== undefined && (
-                    <div>Spread: {game.favorite_abbr} {game.spread > 0 ? '+' : ''}{game.spread}</div>
+                  {game.spread !== null && game.spread !== undefined && game.favorite_abbr && (
+                    <div>Spread: {game.favorite_abbr} -{Math.abs(game.spread)}</div>
                   )}
                   {game.over_under && (
                     <div>Over/Under: {game.over_under}</div>

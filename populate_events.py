@@ -98,8 +98,15 @@ def parse_event_data(event_data: Dict, client=None) -> Optional[tuple]:
         import json
         home_line_scores = home_team.get('linescores', [])
         away_line_scores = away_team.get('linescores', [])
-        home_line_scores_json = json.dumps([ls.get('displayValue', '0') for ls in home_line_scores]) if home_line_scores else None
-        away_line_scores_json = json.dumps([ls.get('displayValue', '0') for ls in away_line_scores]) if away_line_scores else None
+        # Handle case where linescores might be a list of dicts or list of strings
+        if home_line_scores and isinstance(home_line_scores, list):
+            home_line_scores_json = json.dumps([ls.get('displayValue', '0') if isinstance(ls, dict) else str(ls) for ls in home_line_scores])
+        else:
+            home_line_scores_json = None
+        if away_line_scores and isinstance(away_line_scores, list):
+            away_line_scores_json = json.dumps([ls.get('displayValue', '0') if isinstance(ls, dict) else str(ls) for ls in away_line_scores])
+        else:
+            away_line_scores_json = None
 
         # Dereference score if it's a $ref
         if home_score and isinstance(home_score, dict) and '$ref' in home_score and client:

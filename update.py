@@ -255,7 +255,10 @@ class UpdateOrchestrator:
                 # Team statistics
                 teams = boxscore.get('teams', [])
                 for team_data in teams:
-                    parsed = parse_team_statistics(event_id, team_data)
+                    team_id = int(team_data.get('team', {}).get('id', 0))
+                    home_away = team_data.get('homeAway', '')
+                    statistics = team_data.get('statistics', [])
+                    parsed = parse_team_statistics(event_id, team_id, home_away, statistics)
                     if parsed:
                         self.team_stats_buffer.append(parsed)
 
@@ -329,8 +332,10 @@ class UpdateOrchestrator:
                  field_goal_pct, three_point_made, three_point_attempted, three_point_pct,
                  free_throws_made, free_throws_attempted, free_throw_pct, total_rebounds,
                  offensive_rebounds, defensive_rebounds, assists, steals, blocks, turnovers,
-                 fouls, largest_lead, team_turnovers, flagrant_fouls, technical_fouls)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 team_turnovers, total_turnovers, fouls, technical_fouls, flagrant_fouls,
+                 turnover_points, fast_break_points, points_in_paint, largest_lead,
+                 lead_changes, lead_percentage)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 self.team_stats_buffer
             )
@@ -377,9 +382,11 @@ class UpdateOrchestrator:
             self.thread_safe_db.executemany(
                 """
                 INSERT OR REPLACE INTO game_predictions
-                (event_id, home_team_id, away_team_id, home_win_probability,
-                 away_win_probability, predicted_winner_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (event_id, last_modified, matchup_quality, home_win_probability,
+                 home_predicted_margin, away_win_probability, away_predicted_margin,
+                 home_game_score, away_game_score, home_prediction_correct,
+                 away_prediction_correct, margin_error, api_ref)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 self.predictions_buffer
             )

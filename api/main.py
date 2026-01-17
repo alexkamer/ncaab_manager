@@ -297,18 +297,22 @@ async def fetch_games_from_espn(date: str) -> List[Dict[str, Any]]:
             # Get team records at game time
             home_record = None
             away_record = None
+            home_conf_record = None
+            away_conf_record = None
             home_records = home_team.get('records', [])
             away_records = away_team.get('records', [])
 
             for record in home_records:
                 if record.get('type') == 'total' or record.get('name') == 'overall':
                     home_record = record.get('summary')
-                    break
+                elif record.get('type') == 'vsconf':
+                    home_conf_record = record.get('summary')
 
             for record in away_records:
                 if record.get('type') == 'total' or record.get('name') == 'overall':
                     away_record = record.get('summary')
-                    break
+                elif record.get('type') == 'vsconf':
+                    away_conf_record = record.get('summary')
 
             # Get rankings at game time
             home_rank = home_team.get('curatedRank', {}).get('current')
@@ -348,17 +352,55 @@ async def fetch_games_from_espn(date: str) -> List[Dict[str, Any]]:
                 'home_team_abbr': home_team['team']['abbreviation'],
                 'home_team_logo': home_team['team'].get('logo', ''),
                 'home_team_record': home_record,
+                'home_team_conf_record': home_conf_record,
                 'home_team_rank': home_rank,
                 'away_team_name': away_team['team']['displayName'],
                 'away_team_abbr': away_team['team']['abbreviation'],
                 'away_team_logo': away_team['team'].get('logo', ''),
                 'away_team_record': away_record,
+                'away_team_conf_record': away_conf_record,
                 'away_team_rank': away_rank,
                 'spread': spread,
                 'over_under': over_under,
                 'favorite_abbr': favorite_abbr,
+                'home_win_probability': None,
+                'away_win_probability': None,
+                'home_predicted_margin': None,
+                'away_predicted_margin': None,
             }
             games.append(game)
+
+        # Fetch ESPN predictions for upcoming games
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for game in games:
+                if not game['is_completed']:
+                    try:
+                        # Fetch predictor data from ESPN
+                        predictor_url = f"http://sports.core.api.espn.com/v2/sports/basketball/leagues/mens-college-basketball/events/{game['event_id']}/competitions/{game['event_id']}/predictor?lang=en&region=us"
+                        response = await client.get(predictor_url)
+                        if response.status_code == 200:
+                            predictor_data = response.json()
+
+                            # Parse home team predictions from statistics array
+                            home_team_data = predictor_data.get('homeTeam', {})
+                            home_stats = home_team_data.get('statistics', [])
+                            for stat in home_stats:
+                                if stat.get('name') == 'gameProjection' or stat.get('name') == 'teampredwinpct':
+                                    game['home_win_probability'] = stat.get('value')
+                                elif stat.get('name') == 'teampredmov':
+                                    game['home_predicted_margin'] = stat.get('value')
+
+                            # Parse away team predictions from statistics array
+                            away_team_data = predictor_data.get('awayTeam', {})
+                            away_stats = away_team_data.get('statistics', [])
+                            for stat in away_stats:
+                                if stat.get('name') == 'gameProjection' or stat.get('name') == 'teampredwinpct':
+                                    game['away_win_probability'] = stat.get('value')
+                                elif stat.get('name') == 'teampredmov':
+                                    game['away_predicted_margin'] = stat.get('value')
+                    except:
+                        # If ESPN call fails, just continue without predictions
+                        pass
 
         return games
     except Exception as e:
@@ -520,10 +562,15 @@ async def get_games(
                 ht.logo_url as home_team_logo,
                 at.display_name as away_team_name,
                 at.abbreviation as away_team_abbr,
-                at.logo_url as away_team_logo
+                at.logo_url as away_team_logo,
+                gp.home_win_probability,
+                gp.away_win_probability,
+                gp.home_predicted_margin,
+                gp.away_predicted_margin
             FROM events e
             LEFT JOIN teams ht ON e.home_team_id = ht.team_id
             LEFT JOIN teams at ON e.away_team_id = at.team_id
+            LEFT JOIN game_predictions gp ON e.event_id = gp.event_id
             WHERE 1=1
         """
         params = []
@@ -619,6 +666,201 @@ async def get_games(
                                 available_weeks = sorted([w for w in weeks_dict.keys() if not game_week or w <= game_week])
                                 if available_weeks:
                                     game['away_team_ap_rank'] = weeks_dict[available_weeks[-1]]
+
+        # Calculate overall and conference records from database
+        if games:
+            # Get all games that need records
+            games_needing_records = [game for game in games if game.get('home_team_id') and game.get('away_team_id')]
+            conference_games = [game for game in games if game.get('is_conference_game')]
+
+            if games_needing_records:
+                # Collect all unique team IDs, the latest game date, and season_id
+                team_ids = set()
+                max_date = None
+                season_id = None
+                for game in games_needing_records:
+                    team_ids.add(game['home_team_id'])
+                    team_ids.add(game['away_team_id'])
+                    game_date = game['date']
+                    if max_date is None or game_date > max_date:
+                        max_date = game_date
+                    # Get season_id from the first game (all games in the list should be same season)
+                    if season_id is None:
+                        season_id = game.get('season_id')
+
+                if team_ids and max_date and season_id:
+                    # Query database for ALL completed games in this season up to the max date
+                    # Use CST date conversion to match how games are filtered on the frontend
+                    placeholders = ','.join(['?' for _ in team_ids])
+                    cursor.execute(f"""
+                        SELECT
+                            e.home_team_id,
+                            e.away_team_id,
+                            e.home_score,
+                            e.away_score,
+                            e.is_completed,
+                            e.is_conference_game,
+                            e.date,
+                            DATE(datetime(e.date, '-6 hours')) as cst_date
+                        FROM events e
+                        WHERE e.is_completed = 1
+                        AND e.season_id = ?
+                        AND DATE(datetime(e.date, '-6 hours')) <= DATE(datetime(?, '-6 hours'))
+                        AND (e.home_team_id IN ({placeholders}) OR e.away_team_id IN ({placeholders}))
+                        ORDER BY e.date
+                    """, [season_id, max_date] + list(team_ids) + list(team_ids))
+
+                    all_completed_games = cursor.fetchall()
+
+                    # Calculate both overall and conference records
+                    from collections import defaultdict
+                    overall_records = defaultdict(lambda: {'wins': 0, 'losses': 0})
+                    conf_records = defaultdict(lambda: {'wins': 0, 'losses': 0})
+
+                    # Build record histories
+                    overall_record_history = defaultdict(list)
+                    conf_record_history = defaultdict(list)
+
+                    for row in all_completed_games:
+                        home_id, away_id, home_score, away_score, is_completed, is_conf_game, game_date, cst_date = row
+
+                        if is_completed and home_score is not None and away_score is not None:
+                            # Update overall records
+                            if home_score > away_score:
+                                overall_records[home_id]['wins'] += 1
+                                overall_records[away_id]['losses'] += 1
+                            else:
+                                overall_records[away_id]['wins'] += 1
+                                overall_records[home_id]['losses'] += 1
+
+                            # Store overall record history
+                            overall_record_history[home_id].append((game_date, overall_records[home_id]['wins'], overall_records[home_id]['losses']))
+                            overall_record_history[away_id].append((game_date, overall_records[away_id]['wins'], overall_records[away_id]['losses']))
+
+                            # Update conference records if this is a conference game
+                            if is_conf_game:
+                                if home_score > away_score:
+                                    conf_records[home_id]['wins'] += 1
+                                    conf_records[away_id]['losses'] += 1
+                                else:
+                                    conf_records[away_id]['wins'] += 1
+                                    conf_records[home_id]['losses'] += 1
+
+                                # Store conference record history
+                                conf_record_history[home_id].append((game_date, conf_records[home_id]['wins'], conf_records[home_id]['losses']))
+                                conf_record_history[away_id].append((game_date, conf_records[away_id]['wins'], conf_records[away_id]['losses']))
+
+                    # Apply records to games
+                    for game in games_needing_records:
+                        game_date = game['date']
+                        home_id = game['home_team_id']
+                        away_id = game['away_team_id']
+                        is_completed = game.get('is_completed')
+
+                        # For completed games, show record AFTER the game
+                        # For upcoming games, show record BEFORE the game
+                        home_wins, home_losses = 0, 0
+                        away_wins, away_losses = 0, 0
+
+                        for date, wins, losses in overall_record_history.get(home_id, []):
+                            if is_completed:
+                                # Include games up to and including this game
+                                if date <= game_date:
+                                    home_wins, home_losses = wins, losses
+                                else:
+                                    break
+                            else:
+                                # Only include games before this game
+                                if date < game_date:
+                                    home_wins, home_losses = wins, losses
+                                else:
+                                    break
+
+                        for date, wins, losses in overall_record_history.get(away_id, []):
+                            if is_completed:
+                                if date <= game_date:
+                                    away_wins, away_losses = wins, losses
+                                else:
+                                    break
+                            else:
+                                if date < game_date:
+                                    away_wins, away_losses = wins, losses
+                                else:
+                                    break
+
+                        game['home_team_record'] = f"{home_wins}-{home_losses}"
+                        game['away_team_record'] = f"{away_wins}-{away_losses}"
+
+                        # Find conference records (if it's a conference game)
+                        if game.get('is_conference_game'):
+                            home_conf_wins, home_conf_losses = 0, 0
+                            away_conf_wins, away_conf_losses = 0, 0
+
+                            for date, wins, losses in conf_record_history.get(home_id, []):
+                                if is_completed:
+                                    if date <= game_date:
+                                        home_conf_wins, home_conf_losses = wins, losses
+                                    else:
+                                        break
+                                else:
+                                    if date < game_date:
+                                        home_conf_wins, home_conf_losses = wins, losses
+                                    else:
+                                        break
+
+                            for date, wins, losses in conf_record_history.get(away_id, []):
+                                if is_completed:
+                                    if date <= game_date:
+                                        away_conf_wins, away_conf_losses = wins, losses
+                                    else:
+                                        break
+                                else:
+                                    if date < game_date:
+                                        away_conf_wins, away_conf_losses = wins, losses
+                                    else:
+                                        break
+
+                            game['home_team_conf_record'] = f"{home_conf_wins}-{home_conf_losses}"
+                            game['away_team_conf_record'] = f"{away_conf_wins}-{away_conf_losses}"
+
+        # Fetch ESPN predictions for games that don't have them (upcoming games only)
+        if games:
+            games_without_predictions = [
+                game for game in games
+                if not game.get('is_completed') and
+                (game.get('home_win_probability') is None or game.get('away_win_probability') is None)
+            ]
+
+            if games_without_predictions:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    for game in games_without_predictions:
+                        try:
+                            # Fetch predictor data from ESPN
+                            predictor_url = f"http://sports.core.api.espn.com/v2/sports/basketball/leagues/mens-college-basketball/events/{game['event_id']}/competitions/{game['event_id']}/predictor?lang=en&region=us"
+                            response = await client.get(predictor_url)
+                            if response.status_code == 200:
+                                predictor_data = response.json()
+
+                                # Parse home team predictions from statistics array
+                                home_team = predictor_data.get('homeTeam', {})
+                                home_stats = home_team.get('statistics', [])
+                                for stat in home_stats:
+                                    if stat.get('name') == 'gameProjection' or stat.get('name') == 'teampredwinpct':
+                                        game['home_win_probability'] = stat.get('value')
+                                    elif stat.get('name') == 'teampredmov':
+                                        game['home_predicted_margin'] = stat.get('value')
+
+                                # Parse away team predictions from statistics array
+                                away_team = predictor_data.get('awayTeam', {})
+                                away_stats = away_team.get('statistics', [])
+                                for stat in away_stats:
+                                    if stat.get('name') == 'gameProjection' or stat.get('name') == 'teampredwinpct':
+                                        game['away_win_probability'] = stat.get('value')
+                                    elif stat.get('name') == 'teampredmov':
+                                        game['away_predicted_margin'] = stat.get('value')
+                        except:
+                            # If ESPN call fails, just continue without predictions
+                            pass
 
         # If no games found and we're filtering by a single date, try ESPN API
         if len(games) == 0 and date_from and date_from == date_to:
@@ -1741,6 +1983,1017 @@ async def get_season_leaders(
             "season": season,
             "min_games": effective_min_games,
             "min_attempts": min_attempts_val if min_attempts_expr else None
+        }
+
+
+@app.get("/api/bettors-heaven")
+async def get_bettors_heaven():
+    """Get upcoming games with predictions, odds, and betting value analysis from ESPN API"""
+    try:
+        # Fetch today's and tomorrow's games from ESPN API
+        from datetime import timedelta
+        today = datetime.now()
+        tomorrow = today + timedelta(days=1)
+
+        dates = [today.strftime('%Y%m%d'), tomorrow.strftime('%Y%m%d')]
+
+        all_events = []
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for date in dates:
+                url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates={date}&limit=200&groups=50"
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+                all_events.extend(data.get('events', []))
+
+        games = []
+
+        # Process each game and fetch detailed data with predictions
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for event in all_events[:30]:  # Limit to 30 games to avoid timeout
+                event_id = event['id']
+                competition = event['competitions'][0]
+
+                # Skip completed games
+                if competition.get('status', {}).get('type', {}).get('completed', False):
+                    continue
+
+                # Fetch game summary to get predictor data
+                try:
+                    summary_url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event={event_id}"
+                    summary_response = await client.get(summary_url, timeout=10.0)
+
+                    if summary_response.status_code != 200:
+                        continue
+
+                    summary_data = summary_response.json()
+                    predictor = summary_data.get('predictor')
+
+                    if not predictor:
+                        continue
+
+                    home_win_prob = predictor.get('homeTeam', {}).get('gameProjection')
+                    away_win_prob = predictor.get('awayTeam', {}).get('gameProjection')
+
+                    if home_win_prob is None or away_win_prob is None:
+                        continue
+                except Exception as e:
+                    print(f"Error fetching summary for event {event_id}: {e}")
+                    continue
+
+                competitors = competition.get('competitors', [])
+                if len(competitors) < 2:
+                    continue
+
+                # Find home and away teams
+                home_team = next((c for c in competitors if c.get('homeAway') == 'home'), {})
+                away_team = next((c for c in competitors if c.get('homeAway') == 'away'), {})
+
+                # Get odds data from summary endpoint first, fall back to competition odds
+                odds_data = summary_data.get('odds', [])
+                if not odds_data:
+                    odds_data = competition.get('odds', [])
+
+                provider_name = None
+                spread = None
+                away_is_favorite = None
+                home_is_favorite = None
+                away_moneyline = None
+                home_moneyline = None
+                over_under = None
+                over_odds = None
+                under_odds = None
+
+                if odds_data and len(odds_data) > 0:
+                    primary_odds = odds_data[0]
+                    provider_name = primary_odds.get('provider', {}).get('name')
+                    spread = primary_odds.get('spread')
+                    over_under = primary_odds.get('overUnder')
+                    over_odds = primary_odds.get('overOdds')
+                    under_odds = primary_odds.get('underOdds')
+
+                    # Get moneylines
+                    home_odds_data = primary_odds.get('homeTeamOdds', {})
+                    away_odds_data = primary_odds.get('awayTeamOdds', {})
+
+                    away_moneyline = away_odds_data.get('moneyLine')
+                    home_moneyline = home_odds_data.get('moneyLine')
+
+                    # Determine favorite
+                    if home_odds_data.get('favorite'):
+                        home_is_favorite = True
+                        away_is_favorite = False
+                    elif away_odds_data.get('favorite'):
+                        away_is_favorite = True
+                        home_is_favorite = False
+
+                # Calculate predicted margins
+                # ESPN probabilities are percentages (0-100), convert to decimals
+                home_win_prob_decimal = float(home_win_prob) / 100.0
+                away_win_prob_decimal = float(away_win_prob) / 100.0
+
+                home_predicted_margin = None
+                away_predicted_margin = None
+                # Estimate margin based on win probability differential
+                prob_diff = home_win_prob_decimal - away_win_prob_decimal
+                estimated_margin = prob_diff * 30  # Rough estimate: 30 points for 100% prob diff
+                if estimated_margin > 0:
+                    home_predicted_margin = estimated_margin
+                else:
+                    away_predicted_margin = -estimated_margin
+
+                # Get team records from header
+                home_record = None
+                away_record = None
+                home_rank = None
+                away_rank = None
+
+                home_records = home_team.get('records', [])
+                away_records = away_team.get('records', [])
+
+                for record in home_records:
+                    if record.get('type') == 'total':
+                        home_record = record.get('summary')
+                        break
+
+                for record in away_records:
+                    if record.get('type') == 'total':
+                        away_record = record.get('summary')
+                        break
+
+                # Get rankings
+                home_rank = home_team.get('curatedRank', {}).get('current')
+                away_rank = away_team.get('curatedRank', {}).get('current')
+
+                # Calculate predicted total score for O/U analysis
+                predicted_total = None
+                if home_win_prob_decimal and away_win_prob_decimal:
+                    # Rough estimate based on typical college basketball scoring
+                    avg_score = 72  # Average college basketball score
+                    margin = abs(home_predicted_margin if home_predicted_margin else away_predicted_margin if away_predicted_margin else 0)
+                    # Higher probability games tend to have higher margins and different totals
+                    predicted_total = (avg_score * 2) + (margin * 0.5)
+
+                game = {
+                    'event_id': int(event['id']),
+                    'date': event['date'],
+                    'status': competition.get('status', {}).get('type', {}).get('description', 'Scheduled'),
+                    'home_team_id': int(home_team.get('team', {}).get('id', 0)),
+                    'home_team_name': home_team.get('team', {}).get('displayName', ''),
+                    'home_team_logo': home_team.get('team', {}).get('logo', ''),
+                    'home_team_record': home_record,
+                    'home_team_rank': home_rank,
+                    'away_team_id': int(away_team.get('team', {}).get('id', 0)),
+                    'away_team_name': away_team.get('team', {}).get('displayName', ''),
+                    'away_team_logo': away_team.get('team', {}).get('logo', ''),
+                    'away_team_record': away_record,
+                    'away_team_rank': away_rank,
+                    'home_win_probability': home_win_prob_decimal,
+                    'away_win_probability': away_win_prob_decimal,
+                    'home_predicted_margin': home_predicted_margin,
+                    'away_predicted_margin': away_predicted_margin,
+                    'predicted_total': predicted_total,
+                    'matchup_quality': predictor.get('matchupQuality'),
+                    'provider_name': provider_name,
+                    'spread': spread,
+                    'away_is_favorite': away_is_favorite,
+                    'home_is_favorite': home_is_favorite,
+                    'away_moneyline': away_moneyline,
+                    'home_moneyline': home_moneyline,
+                    'over_under': over_under,
+                    'over_odds': over_odds,
+                    'under_odds': under_odds
+                }
+
+                games.append(game)
+
+        # Fetch overall accuracy stats from database
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_predictions,
+                    SUM(CASE WHEN home_prediction_correct = 1 OR away_prediction_correct = 1 THEN 1 ELSE 0 END) as correct,
+                    AVG(ABS(margin_error)) as avg_margin_error
+                FROM game_predictions
+                WHERE margin_error IS NOT NULL
+            """)
+
+            accuracy_row = cursor.fetchone()
+            if accuracy_row:
+                total = accuracy_row[0]
+                correct = accuracy_row[1]
+                avg_error = round(accuracy_row[2], 1) if accuracy_row[2] else 0
+                accuracy_pct = round((correct / total * 100), 1) if total > 0 else 0
+            else:
+                total = 0
+                correct = 0
+                accuracy_pct = 0
+                avg_error = 0
+
+        return {
+            "games": games,
+            "overall_accuracy": {
+                "total": total,
+                "correct": correct,
+                "accuracy_pct": accuracy_pct,
+                "avg_margin_error": avg_error
+            }
+        }
+
+    except Exception as e:
+        print(f"Error fetching bettors heaven data: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to fetch betting data: {str(e)}")
+
+
+@app.get("/api/betting-analytics")
+def get_betting_analytics():
+    """Analyze historical prediction accuracy to find betting edges"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Overall accuracy
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN home_prediction_correct = 1 OR away_prediction_correct = 1 THEN 1 ELSE 0 END) as correct,
+                AVG(ABS(margin_error)) as avg_margin_error
+            FROM game_predictions
+            WHERE margin_error IS NOT NULL
+        """)
+        overall = dict_from_row(cursor.fetchone())
+
+        # Accuracy by spread range
+        cursor.execute("""
+            SELECT
+                CASE
+                    WHEN ABS(o.spread) < 3 THEN 'Close (<3)'
+                    WHEN ABS(o.spread) < 7 THEN 'Moderate (3-7)'
+                    WHEN ABS(o.spread) < 12 THEN 'Large (7-12)'
+                    ELSE 'Blowout (12+)'
+                END as spread_range,
+                COUNT(*) as total,
+                SUM(CASE WHEN gp.home_prediction_correct = 1 OR gp.away_prediction_correct = 1 THEN 1 ELSE 0 END) as correct,
+                AVG(ABS(gp.margin_error)) as avg_margin_error,
+                AVG(o.spread) as avg_spread
+            FROM game_predictions gp
+            JOIN game_odds o ON gp.event_id = o.event_id AND o.provider_priority = 1
+            WHERE gp.margin_error IS NOT NULL AND o.spread IS NOT NULL
+            GROUP BY spread_range
+            ORDER BY avg_spread
+        """)
+        by_spread = [dict_from_row(row) for row in cursor.fetchall()]
+
+        # Accuracy by prediction confidence
+        cursor.execute("""
+            SELECT
+                CASE
+                    WHEN MAX(home_win_probability, away_win_probability) < 0.6 THEN 'Toss-Up (<60%)'
+                    WHEN MAX(home_win_probability, away_win_probability) < 0.75 THEN 'Moderate (60-75%)'
+                    WHEN MAX(home_win_probability, away_win_probability) < 0.90 THEN 'High (75-90%)'
+                    ELSE 'Very High (90%+)'
+                END as confidence_range,
+                COUNT(*) as total,
+                SUM(CASE WHEN home_prediction_correct = 1 OR away_prediction_correct = 1 THEN 1 ELSE 0 END) as correct,
+                AVG(ABS(margin_error)) as avg_margin_error
+            FROM game_predictions
+            WHERE margin_error IS NOT NULL
+            AND home_win_probability IS NOT NULL
+            AND away_win_probability IS NOT NULL
+            GROUP BY confidence_range
+            ORDER BY MIN(MAX(home_win_probability, away_win_probability))
+        """)
+        by_confidence = [dict_from_row(row) for row in cursor.fetchall()]
+
+        # Home vs Away accuracy
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN home_prediction_correct = 1 THEN 1 ELSE 0 END) as home_correct,
+                SUM(CASE WHEN away_prediction_correct = 1 THEN 1 ELSE 0 END) as away_correct,
+                COUNT(*) as total
+            FROM game_predictions
+            WHERE margin_error IS NOT NULL
+        """)
+        home_away = dict_from_row(cursor.fetchone())
+
+        # Accuracy when ESPN disagrees with spread (potential value)
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN gp.home_prediction_correct = 1 OR gp.away_prediction_correct = 1 THEN 1 ELSE 0 END) as correct,
+                AVG(ABS(gp.margin_error)) as avg_margin_error
+            FROM game_predictions gp
+            JOIN game_odds o ON gp.event_id = o.event_id AND o.provider_priority = 1
+            WHERE gp.margin_error IS NOT NULL
+            AND o.spread IS NOT NULL
+            AND (
+                (gp.home_predicted_margin > 0 AND o.home_is_favorite = 0) OR
+                (gp.away_predicted_margin > 0 AND o.away_is_favorite = 0)
+            )
+        """)
+        disagree_row = cursor.fetchone()
+        espn_vs_spread = dict_from_row(disagree_row) if disagree_row and disagree_row[0] > 0 else {"total": 0, "correct": 0, "avg_margin_error": 0}
+
+        # Over/Under accuracy (comparing predicted total to actual)
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_with_ou,
+                SUM(CASE
+                    WHEN e.home_score + e.away_score > o.over_under THEN 1
+                    ELSE 0
+                END) as actual_overs,
+                SUM(CASE
+                    WHEN e.home_score + e.away_score < o.over_under THEN 1
+                    ELSE 0
+                END) as actual_unders,
+                AVG(o.over_under) as avg_ou_line,
+                AVG(e.home_score + e.away_score) as avg_actual_total
+            FROM events e
+            JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+            WHERE e.is_completed = 1
+            AND o.over_under IS NOT NULL
+            AND e.home_score IS NOT NULL
+            AND e.away_score IS NOT NULL
+        """)
+        ou_accuracy = dict_from_row(cursor.fetchone())
+
+        # Best betting scenarios (highest ESPN accuracy)
+        cursor.execute("""
+            SELECT
+                'Heavy Favorite Predictions' as scenario,
+                COUNT(*) as total,
+                SUM(CASE WHEN home_prediction_correct = 1 OR away_prediction_correct = 1 THEN 1 ELSE 0 END) as correct,
+                ROUND(CAST(SUM(CASE WHEN home_prediction_correct = 1 OR away_prediction_correct = 1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) * 100, 1) as accuracy_pct
+            FROM game_predictions
+            WHERE margin_error IS NOT NULL
+            AND MAX(home_win_probability, away_win_probability) >= 0.8
+            UNION ALL
+            SELECT
+                'Close Games (<3 pt spread)' as scenario,
+                COUNT(*) as total,
+                SUM(CASE WHEN gp.home_prediction_correct = 1 OR gp.away_prediction_correct = 1 THEN 1 ELSE 0 END) as correct,
+                ROUND(CAST(SUM(CASE WHEN gp.home_prediction_correct = 1 OR gp.away_prediction_correct = 1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) * 100, 1) as accuracy_pct
+            FROM game_predictions gp
+            JOIN game_odds o ON gp.event_id = o.event_id AND o.provider_priority = 1
+            WHERE gp.margin_error IS NOT NULL
+            AND ABS(o.spread) < 3
+            UNION ALL
+            SELECT
+                'ESPN Disagrees with Spread' as scenario,
+                COUNT(*) as total,
+                SUM(CASE WHEN gp.home_prediction_correct = 1 OR gp.away_prediction_correct = 1 THEN 1 ELSE 0 END) as correct,
+                ROUND(CAST(SUM(CASE WHEN gp.home_prediction_correct = 1 OR gp.away_prediction_correct = 1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) * 100, 1) as accuracy_pct
+            FROM game_predictions gp
+            JOIN game_odds o ON gp.event_id = o.event_id AND o.provider_priority = 1
+            WHERE gp.margin_error IS NOT NULL
+            AND (
+                (gp.home_predicted_margin > 0 AND o.home_is_favorite = 0) OR
+                (gp.away_predicted_margin > 0 AND o.away_is_favorite = 0)
+            )
+            ORDER BY accuracy_pct DESC
+        """)
+        best_scenarios = [dict_from_row(row) for row in cursor.fetchall()]
+
+        return {
+            "overall": overall,
+            "by_spread_range": by_spread,
+            "by_confidence": by_confidence,
+            "home_away": home_away,
+            "espn_vs_spread": espn_vs_spread,
+            "over_under": ou_accuracy,
+            "best_scenarios": best_scenarios
+        }
+
+
+@app.get("/api/betting-analytics/examples")
+def get_betting_examples(
+    scenario: str = Query("all", description="Scenario type: blowouts, close, disagree, home_wins, ou_over, ou_under"),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """Get actual game examples for different betting scenarios"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        if scenario == "blowouts":
+            # Games with 12+ spread where ESPN was right/wrong
+            cursor.execute("""
+                SELECT
+                    e.event_id, e.date,
+                    ht.display_name as home_team, ht.logo_url as home_logo,
+                    at.display_name as away_team, at.logo_url as away_logo,
+                    e.home_score, e.away_score,
+                    gp.home_win_probability, gp.away_win_probability,
+                    gp.home_predicted_margin, gp.away_predicted_margin,
+                    gp.home_prediction_correct, gp.away_prediction_correct,
+                    gp.margin_error,
+                    o.spread, o.home_is_favorite, o.away_is_favorite
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE gp.margin_error IS NOT NULL
+                AND ABS(o.spread) >= 12
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (limit,))
+
+        elif scenario == "close":
+            # Close games (<3 spread)
+            cursor.execute("""
+                SELECT
+                    e.event_id, e.date,
+                    ht.display_name as home_team, ht.logo_url as home_logo,
+                    at.display_name as away_team, at.logo_url as away_logo,
+                    e.home_score, e.away_score,
+                    gp.home_win_probability, gp.away_win_probability,
+                    gp.home_predicted_margin, gp.away_predicted_margin,
+                    gp.home_prediction_correct, gp.away_prediction_correct,
+                    gp.margin_error,
+                    o.spread, o.home_is_favorite, o.away_is_favorite
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE gp.margin_error IS NOT NULL
+                AND ABS(o.spread) < 3
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (limit,))
+
+        elif scenario == "disagree":
+            # ESPN disagrees with spread
+            cursor.execute("""
+                SELECT
+                    e.event_id, e.date,
+                    ht.display_name as home_team, ht.logo_url as home_logo,
+                    at.display_name as away_team, at.logo_url as away_logo,
+                    e.home_score, e.away_score,
+                    gp.home_win_probability, gp.away_win_probability,
+                    gp.home_predicted_margin, gp.away_predicted_margin,
+                    gp.home_prediction_correct, gp.away_prediction_correct,
+                    gp.margin_error,
+                    o.spread, o.home_is_favorite, o.away_is_favorite
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE gp.margin_error IS NOT NULL
+                AND (
+                    (gp.home_predicted_margin > 0 AND o.home_is_favorite = 0) OR
+                    (gp.away_predicted_margin > 0 AND o.away_is_favorite = 0)
+                )
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (limit,))
+
+        elif scenario == "home_wins":
+            # Home team victories
+            cursor.execute("""
+                SELECT
+                    e.event_id, e.date,
+                    ht.display_name as home_team, ht.logo_url as home_logo,
+                    at.display_name as away_team, at.logo_url as away_logo,
+                    e.home_score, e.away_score,
+                    gp.home_win_probability, gp.away_win_probability,
+                    gp.home_predicted_margin, gp.away_predicted_margin,
+                    gp.home_prediction_correct, gp.away_prediction_correct,
+                    gp.margin_error,
+                    o.spread, o.home_is_favorite, o.away_is_favorite
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                LEFT JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE gp.margin_error IS NOT NULL
+                AND gp.home_prediction_correct = 1
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (limit,))
+
+        elif scenario == "ou_over":
+            # Games that went over
+            cursor.execute("""
+                SELECT
+                    e.event_id, e.date,
+                    ht.display_name as home_team, ht.logo_url as home_logo,
+                    at.display_name as away_team, at.logo_url as away_logo,
+                    e.home_score, e.away_score,
+                    o.over_under,
+                    (e.home_score + e.away_score) as actual_total,
+                    (e.home_score + e.away_score - o.over_under) as ou_diff
+                FROM events e
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND o.over_under IS NOT NULL
+                AND e.home_score IS NOT NULL
+                AND e.away_score IS NOT NULL
+                AND (e.home_score + e.away_score) > o.over_under
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (limit,))
+
+        elif scenario == "ou_under":
+            # Games that went under
+            cursor.execute("""
+                SELECT
+                    e.event_id, e.date,
+                    ht.display_name as home_team, ht.logo_url as home_logo,
+                    at.display_name as away_team, at.logo_url as away_logo,
+                    e.home_score, e.away_score,
+                    o.over_under,
+                    (e.home_score + e.away_score) as actual_total,
+                    (o.over_under - (e.home_score + e.away_score)) as ou_diff
+                FROM events e
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND o.over_under IS NOT NULL
+                AND e.home_score IS NOT NULL
+                AND e.away_score IS NOT NULL
+                AND (e.home_score + e.away_score) < o.over_under
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (limit,))
+
+        else:
+            # All games with predictions
+            cursor.execute("""
+                SELECT
+                    e.event_id, e.date,
+                    ht.display_name as home_team, ht.logo_url as home_logo,
+                    at.display_name as away_team, at.logo_url as away_logo,
+                    e.home_score, e.away_score,
+                    gp.home_win_probability, gp.away_win_probability,
+                    gp.home_predicted_margin, gp.away_predicted_margin,
+                    gp.home_prediction_correct, gp.away_prediction_correct,
+                    gp.margin_error,
+                    o.spread, o.home_is_favorite, o.away_is_favorite
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                LEFT JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE gp.margin_error IS NOT NULL
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (limit,))
+
+        games = []
+        for row in cursor.fetchall():
+            game = dict_from_row(row)
+
+            # Add computed fields for the frontend
+            if 'home_prediction_correct' in game and 'away_prediction_correct' in game:
+                # Determine if ESPN was correct
+                game['espn_correct'] = game['home_prediction_correct'] == 1 or game['away_prediction_correct'] == 1
+
+                # Determine who ESPN favored
+                if game.get('home_win_probability', 0) > game.get('away_win_probability', 0):
+                    game['espn_favored_team'] = game['home_team']
+                else:
+                    game['espn_favored_team'] = game['away_team']
+
+                # Determine who spread favored
+                if game.get('home_is_favorite'):
+                    game['spread_favored_team'] = game['home_team']
+                elif game.get('away_is_favorite'):
+                    game['spread_favored_team'] = game['away_team']
+                else:
+                    game['spread_favored_team'] = 'Pick\'em'
+
+            games.append(game)
+
+        return {"games": games, "scenario": scenario, "count": len(games)}
+
+
+@app.get("/api/betting-strategies")
+def get_betting_strategies():
+    """
+    Analyze historical game data to find profitable betting strategies.
+    Focuses on current season trends with ESPN predictions vs betting lines.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        strategies = []
+
+        # Strategy 1: Fade the Spread (ESPN predicts different margin than spread)
+        # Test multiple thresholds: 2pt, 3pt, 4pt, 5pt differences
+        for threshold in [2, 3, 4, 5]:
+            # ESPN predicts LARGER margin than spread (bet favorite)
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_games,
+                    SUM(CASE
+                        WHEN (e.home_score - e.away_score) > ABS(o.spread) THEN 1
+                        ELSE 0
+                    END) as covers,
+                    AVG(ABS((e.home_score - e.away_score) - ABS(o.spread))) as avg_margin
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND gp.margin_error IS NOT NULL
+                AND o.spread IS NOT NULL
+                AND o.home_is_favorite = 1
+                AND gp.home_predicted_margin IS NOT NULL
+                AND ABS(gp.home_predicted_margin) - ABS(o.spread) >= ?
+            """, (threshold,))
+
+            fav_larger = cursor.fetchone()
+
+            # ESPN predicts SMALLER margin than spread (bet underdog)
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_games,
+                    SUM(CASE
+                        WHEN (e.home_score - e.away_score) < ABS(o.spread) THEN 1
+                        ELSE 0
+                    END) as covers,
+                    AVG(ABS((e.home_score - e.away_score) - ABS(o.spread))) as avg_margin
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND gp.margin_error IS NOT NULL
+                AND o.spread IS NOT NULL
+                AND o.home_is_favorite = 1
+                AND gp.home_predicted_margin IS NOT NULL
+                AND ABS(o.spread) - ABS(gp.home_predicted_margin) >= ?
+            """, (threshold,))
+
+            dog_smaller = cursor.fetchone()
+
+            # Combine both scenarios
+            total = (fav_larger[0] or 0) + (dog_smaller[0] or 0)
+            covers = (fav_larger[1] or 0) + (dog_smaller[1] or 0)
+
+            if total >= 20:  # Minimum sample size
+                win_rate = (covers / total * 100) if total > 0 else 0
+                # Calculate ROI assuming -110 odds (need to win 52.4% to break even)
+                # Win = +$100, Loss = -$110
+                profit = (covers * 100) - ((total - covers) * 110)
+                roi = (profit / (total * 110)) * 100 if total > 0 else 0
+
+                strategies.append({
+                    "id": f"fade_spread_{threshold}pt",
+                    "name": f"Fade the Spread ({threshold}+ pt difference)",
+                    "category": "Spread Strategy",
+                    "description": f"Bet favorite when ESPN predicts {threshold}+ points more than spread, bet underdog when ESPN predicts {threshold}+ points less",
+                    "total_games": total,
+                    "wins": covers,
+                    "losses": total - covers,
+                    "win_rate": round(win_rate, 1),
+                    "roi": round(roi, 1),
+                    "profit": round(profit, 0),
+                    "threshold": threshold,
+                    "sample_size_adequate": total >= 50,
+                    "statistically_significant": total >= 50 and win_rate > 53
+                })
+
+        # Strategy 2: High Confidence + Disagreement
+        for conf_threshold in [0.65, 0.70, 0.75]:
+            for margin_threshold in [2, 3, 4]:
+                cursor.execute("""
+                    SELECT
+                        COUNT(*) as total_games,
+                        SUM(CASE WHEN gp.home_prediction_correct = 1 THEN 1 ELSE 0 END) as correct
+                    FROM game_predictions gp
+                    JOIN events e ON gp.event_id = e.event_id
+                    JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                    WHERE e.is_completed = 1
+                    AND gp.margin_error IS NOT NULL
+                    AND o.spread IS NOT NULL
+                    AND gp.home_win_probability >= ?
+                    AND ABS(ABS(gp.home_predicted_margin) - ABS(o.spread)) >= ?
+                """, (conf_threshold, margin_threshold))
+
+                result = cursor.fetchone()
+                total = result[0] or 0
+                correct = result[1] or 0
+
+                if total >= 15:
+                    win_rate = (correct / total * 100) if total > 0 else 0
+                    profit = (correct * 100) - ((total - correct) * 110)
+                    roi = (profit / (total * 110)) * 100 if total > 0 else 0
+
+                    strategies.append({
+                        "id": f"high_conf_{int(conf_threshold*100)}pct_{margin_threshold}pt",
+                        "name": f"High Confidence Edge ({int(conf_threshold*100)}%+ conf, {margin_threshold}+ pt diff)",
+                        "category": "Confidence Strategy",
+                        "description": f"When ESPN is {int(conf_threshold*100)}%+ confident AND differs by {margin_threshold}+ points from spread",
+                        "total_games": total,
+                        "wins": correct,
+                        "losses": total - correct,
+                        "win_rate": round(win_rate, 1),
+                        "roi": round(roi, 1),
+                        "profit": round(profit, 0),
+                        "confidence_threshold": conf_threshold,
+                        "margin_threshold": margin_threshold,
+                        "sample_size_adequate": total >= 30,
+                        "statistically_significant": total >= 30 and win_rate > 53
+                    })
+
+        # Strategy 3: Blowout Confirmation (ESPN agrees with large spread)
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_games,
+                SUM(CASE WHEN gp.home_prediction_correct = 1 THEN 1 ELSE 0 END) as correct
+            FROM game_predictions gp
+            JOIN events e ON gp.event_id = e.event_id
+            JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+            WHERE e.is_completed = 1
+            AND gp.margin_error IS NOT NULL
+            AND ABS(o.spread) >= 12
+            AND ABS(ABS(gp.home_predicted_margin) - ABS(o.spread)) <= 3
+        """)
+
+        result = cursor.fetchone()
+        total = result[0] or 0
+        correct = result[1] or 0
+
+        if total >= 10:
+            win_rate = (correct / total * 100) if total > 0 else 0
+            profit = (correct * 100) - ((total - correct) * 110)
+            roi = (profit / (total * 110)) * 100 if total > 0 else 0
+
+            strategies.append({
+                "id": "blowout_confirmation",
+                "name": "Blowout Confirmation",
+                "category": "High Confidence",
+                "description": "Bet favorite when spread is 12+ points and ESPN agrees within 3 points",
+                "total_games": total,
+                "wins": correct,
+                "losses": total - correct,
+                "win_rate": round(win_rate, 1),
+                "roi": round(roi, 1),
+                "profit": round(profit, 0),
+                "sample_size_adequate": total >= 30,
+                "statistically_significant": total >= 30 and win_rate > 53
+            })
+
+        # Strategy 4: Home Underdog Special
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_games,
+                SUM(CASE WHEN e.home_score > e.away_score THEN 1 ELSE 0 END) as home_wins
+            FROM game_predictions gp
+            JOIN events e ON gp.event_id = e.event_id
+            JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+            WHERE e.is_completed = 1
+            AND gp.margin_error IS NOT NULL
+            AND o.spread IS NOT NULL
+            AND o.away_is_favorite = 1
+            AND o.spread BETWEEN 3 AND 7
+            AND ABS(gp.home_predicted_margin - gp.away_predicted_margin) <= 3
+        """)
+
+        result = cursor.fetchone()
+        total = result[0] or 0
+        home_wins = result[1] or 0
+
+        if total >= 15:
+            win_rate = (home_wins / total * 100) if total > 0 else 0
+            profit = (home_wins * 100) - ((total - home_wins) * 110)
+            roi = (profit / (total * 110)) * 100 if total > 0 else 0
+
+            strategies.append({
+                "id": "home_underdog_special",
+                "name": "Home Underdog Special",
+                "category": "Situational",
+                "description": "Bet home underdog (+3 to +7) when ESPN predicts close game",
+                "total_games": total,
+                "wins": home_wins,
+                "losses": total - home_wins,
+                "win_rate": round(win_rate, 1),
+                "roi": round(roi, 1),
+                "profit": round(profit, 0),
+                "sample_size_adequate": total >= 30,
+                "statistically_significant": total >= 30 and win_rate > 53
+            })
+
+        # Sort strategies by ROI (best first)
+        strategies.sort(key=lambda x: x['roi'], reverse=True)
+
+        return {
+            "strategies": strategies,
+            "season": "2024-25",
+            "note": "All ROI calculations assume -110 odds (standard juice). Break-even win rate is 52.4%."
+        }
+
+
+@app.get("/api/betting-strategies/{strategy_id}/examples")
+def get_strategy_examples(strategy_id: str, limit: int = 10):
+    """
+    Get example games for a specific betting strategy.
+    Shows recent wins and losses to illustrate the strategy in action.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Parse strategy ID to get type and parameters
+        if strategy_id.startswith("fade_spread_"):
+            threshold = int(strategy_id.split("_")[-1].replace("pt", ""))
+
+            # Get examples where ESPN predicted larger margin (bet favorite)
+            cursor.execute("""
+                SELECT
+                    e.*,
+                    ht.display_name as home_team,
+                    ht.abbreviation as home_team_short,
+                    at.display_name as away_team,
+                    at.abbreviation as away_team_short,
+                    o.spread,
+                    o.home_is_favorite,
+                    gp.home_win_probability,
+                    gp.home_predicted_margin,
+                    gp.away_predicted_margin,
+                    gp.margin_error,
+                    CASE
+                        WHEN (e.home_score - e.away_score) > ABS(o.spread) THEN 1
+                        ELSE 0
+                    END as bet_won
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND o.spread IS NOT NULL
+                AND o.home_is_favorite = 1
+                AND gp.home_predicted_margin IS NOT NULL
+                AND ABS(gp.home_predicted_margin) - ABS(o.spread) >= ?
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (threshold, limit // 2))
+
+            fav_examples = [dict_from_row(row) for row in cursor.fetchall()]
+
+            # Get examples where ESPN predicted smaller margin (bet underdog)
+            cursor.execute("""
+                SELECT
+                    e.*,
+                    ht.display_name as home_team,
+                    ht.abbreviation as home_team_short,
+                    at.display_name as away_team,
+                    at.abbreviation as away_team_short,
+                    o.spread,
+                    o.home_is_favorite,
+                    gp.home_win_probability,
+                    gp.home_predicted_margin,
+                    gp.away_predicted_margin,
+                    gp.margin_error,
+                    CASE
+                        WHEN (e.home_score - e.away_score) < ABS(o.spread) THEN 1
+                        ELSE 0
+                    END as bet_won
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND o.spread IS NOT NULL
+                AND o.home_is_favorite = 1
+                AND gp.home_predicted_margin IS NOT NULL
+                AND ABS(o.spread) - ABS(gp.home_predicted_margin) >= ?
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (threshold, limit // 2))
+
+            dog_examples = [dict_from_row(row) for row in cursor.fetchall()]
+
+            examples = fav_examples + dog_examples
+
+        elif strategy_id.startswith("high_conf_"):
+            parts = strategy_id.split("_")
+            conf_threshold = float(parts[2].replace("pct", "")) / 100  # e.g., "65pct" -> 0.65
+            margin_threshold = int(parts[3].replace("pt", ""))
+
+            cursor.execute("""
+                SELECT
+                    e.*,
+                    ht.display_name as home_team,
+                    ht.abbreviation as home_team_short,
+                    at.display_name as away_team,
+                    at.abbreviation as away_team_short,
+                    o.spread,
+                    o.home_is_favorite,
+                    gp.home_win_probability,
+                    gp.home_predicted_margin,
+                    gp.away_predicted_margin,
+                    gp.margin_error,
+                    gp.home_prediction_correct as bet_won
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND o.spread IS NOT NULL
+                AND gp.home_win_probability >= ?
+                AND ABS(ABS(gp.home_predicted_margin) - ABS(o.spread)) >= ?
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (conf_threshold, margin_threshold, limit))
+
+            examples = [dict_from_row(row) for row in cursor.fetchall()]
+
+        elif strategy_id.startswith("blowout_conf_"):
+            threshold = int(strategy_id.split("_")[-1].replace("pt", ""))
+
+            cursor.execute("""
+                SELECT
+                    e.*,
+                    ht.display_name as home_team,
+                    ht.abbreviation as home_team_short,
+                    at.display_name as away_team,
+                    at.abbreviation as away_team_short,
+                    o.spread,
+                    o.home_is_favorite,
+                    gp.home_win_probability,
+                    gp.home_predicted_margin,
+                    gp.away_predicted_margin,
+                    gp.margin_error,
+                    CASE
+                        WHEN (e.home_score - e.away_score) > ABS(o.spread) THEN 1
+                        ELSE 0
+                    END as bet_won
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND o.spread IS NOT NULL
+                AND ABS(o.spread) >= 12
+                AND ((o.home_is_favorite = 1 AND gp.home_predicted_margin >= (ABS(o.spread) - ?))
+                     OR (o.away_is_favorite = 1 AND gp.away_predicted_margin >= (ABS(o.spread) - ?)))
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (threshold, threshold, limit))
+
+            examples = [dict_from_row(row) for row in cursor.fetchall()]
+
+        elif strategy_id.startswith("home_dog_"):
+            parts = strategy_id.split("_")
+            threshold = int(parts[-1].replace("pt", ""))
+
+            cursor.execute("""
+                SELECT
+                    e.*,
+                    ht.display_name as home_team,
+                    ht.abbreviation as home_team_short,
+                    at.display_name as away_team,
+                    at.abbreviation as away_team_short,
+                    o.spread,
+                    o.home_is_favorite,
+                    o.away_is_favorite,
+                    gp.home_win_probability,
+                    gp.home_predicted_margin,
+                    gp.away_predicted_margin,
+                    gp.margin_error,
+                    CASE
+                        WHEN e.home_score > e.away_score THEN 1
+                        ELSE 0
+                    END as bet_won
+                FROM game_predictions gp
+                JOIN events e ON gp.event_id = e.event_id
+                JOIN teams ht ON e.home_team_id = ht.team_id
+                JOIN teams at ON e.away_team_id = at.team_id
+                JOIN game_odds o ON e.event_id = o.event_id AND o.provider_priority = 1
+                WHERE e.is_completed = 1
+                AND o.spread IS NOT NULL
+                AND o.away_is_favorite = 1
+                AND ABS(o.spread) BETWEEN 3 AND 7
+                AND ABS(gp.home_predicted_margin) <= ?
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (threshold, limit))
+
+            examples = [dict_from_row(row) for row in cursor.fetchall()]
+
+        else:
+            return {"examples": [], "message": "Strategy not found"}
+
+        # Add computed fields for frontend
+        for game in examples:
+            if game.get('home_score') is not None:
+                game['actual_margin'] = game['home_score'] - game['away_score']
+            game['espn_predicted_margin'] = game.get('home_predicted_margin', 0)
+
+        return {
+            "examples": examples,
+            "strategy_id": strategy_id,
+            "count": len(examples)
         }
 
 
