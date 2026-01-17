@@ -1408,7 +1408,7 @@ def get_teams(
 
 
 async def fetch_team_leaders_from_espn(team_id: int, season: int) -> List[Dict[str, Any]]:
-    """Fetch team leaders from ESPN Core API"""
+    """Fetch team leaders from ESPN Core API sorted by PRA (Points + Rebounds + Assists)"""
     try:
         url = f"http://sports.core.api.espn.com/v2/sports/basketball/leagues/mens-college-basketball/seasons/{season}/types/0/teams/{team_id}/leaders?lang=en&region=us"
 
@@ -1417,7 +1417,6 @@ async def fetch_team_leaders_from_espn(team_id: int, season: int) -> List[Dict[s
             response.raise_for_status()
             data = response.json()
 
-            leaders = []
             categories = data.get('categories', [])
 
             # Find points, rebounds, and assists categories
@@ -1425,45 +1424,62 @@ async def fetch_team_leaders_from_espn(team_id: int, season: int) -> List[Dict[s
             rpg_category = next((c for c in categories if c.get('name') == 'reboundsPerGame'), None)
             apg_category = next((c for c in categories if c.get('name') == 'assistsPerGame'), None)
 
+            # Build a map of all athletes with their stats
+            athlete_stats = {}
+
+            # Collect all athletes from all categories
             if ppg_category:
-                # Get top scorers and fetch their full stats
-                for idx, leader in enumerate(ppg_category.get('leaders', [])[:10]):
+                for leader in ppg_category.get('leaders', []):
                     athlete_url = leader.get('athlete', {}).get('$ref')
                     if athlete_url:
-                        try:
-                            athlete_response = await client.get(athlete_url, timeout=10.0)
-                            athlete_data = athlete_response.json()
+                        if athlete_url not in athlete_stats:
+                            athlete_stats[athlete_url] = {'ppg': 0.0, 'rpg': 0.0, 'apg': 0.0}
+                        athlete_stats[athlete_url]['ppg'] = leader.get('value', 0.0)
 
-                            # Get rebounds and assists for this athlete
-                            rpg = 0.0
-                            apg = 0.0
+            if rpg_category:
+                for leader in rpg_category.get('leaders', []):
+                    athlete_url = leader.get('athlete', {}).get('$ref')
+                    if athlete_url:
+                        if athlete_url not in athlete_stats:
+                            athlete_stats[athlete_url] = {'ppg': 0.0, 'rpg': 0.0, 'apg': 0.0}
+                        athlete_stats[athlete_url]['rpg'] = leader.get('value', 0.0)
 
-                            if rpg_category:
-                                rpg_leader = next((l for l in rpg_category.get('leaders', [])
-                                                 if l.get('athlete', {}).get('$ref') == athlete_url), None)
-                                if rpg_leader:
-                                    rpg = rpg_leader.get('value', 0.0)
+            if apg_category:
+                for leader in apg_category.get('leaders', []):
+                    athlete_url = leader.get('athlete', {}).get('$ref')
+                    if athlete_url:
+                        if athlete_url not in athlete_stats:
+                            athlete_stats[athlete_url] = {'ppg': 0.0, 'rpg': 0.0, 'apg': 0.0}
+                        athlete_stats[athlete_url]['apg'] = leader.get('value', 0.0)
 
-                            if apg_category:
-                                apg_leader = next((l for l in apg_category.get('leaders', [])
-                                                 if l.get('athlete', {}).get('$ref') == athlete_url), None)
-                                if apg_leader:
-                                    apg = apg_leader.get('value', 0.0)
+            # Calculate PRA for each athlete and fetch their details
+            leaders = []
+            for athlete_url, stats in athlete_stats.items():
+                pra = stats['ppg'] + stats['rpg'] + stats['apg']
 
-                            leaders.append({
-                                'athlete_id': athlete_data.get('id'),
-                                'full_name': athlete_data.get('fullName'),
-                                'display_name': athlete_data.get('displayName'),
-                                'position_name': athlete_data.get('position', {}).get('displayName', ''),
-                                'avg_points': round(leader.get('value', 0.0), 1),
-                                'avg_rebounds': round(rpg, 1),
-                                'avg_assists': round(apg, 1)
-                            })
-                        except Exception as e:
-                            print(f"Error fetching athlete data: {e}")
-                            continue
+                # Only include players with meaningful contributions (PRA > 5)
+                if pra > 5:
+                    try:
+                        athlete_response = await client.get(athlete_url, timeout=10.0)
+                        athlete_data = athlete_response.json()
 
-            return leaders
+                        leaders.append({
+                            'athlete_id': athlete_data.get('id'),
+                            'full_name': athlete_data.get('fullName'),
+                            'display_name': athlete_data.get('displayName'),
+                            'position_name': athlete_data.get('position', {}).get('displayName', ''),
+                            'avg_points': round(stats['ppg'], 1),
+                            'avg_rebounds': round(stats['rpg'], 1),
+                            'avg_assists': round(stats['apg'], 1),
+                            'pra': round(pra, 1)
+                        })
+                    except Exception as e:
+                        print(f"Error fetching athlete data: {e}")
+                        continue
+
+            # Sort by PRA (descending) and return top 10
+            leaders.sort(key=lambda x: x['pra'], reverse=True)
+            return leaders[:10]
 
     except Exception as e:
         print(f"Error fetching team leaders from ESPN: {e}")

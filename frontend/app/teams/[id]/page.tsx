@@ -314,11 +314,12 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
         )}
       </div>
 
-      {/* Team Leaders */}
+      {/* Top Contributors */}
       {leaders.length > 0 && (
         <div className="border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Team Leaders</h2>
+            <h2 className="text-xl font-bold text-gray-900">Top Contributors</h2>
+            <p className="text-sm text-gray-500 mt-1">Ranked by PRA (Points + Rebounds + Assists)</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
             {leaders.slice(0, 3).map((leader: any, idx: number) => (
@@ -327,8 +328,13 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                 href={`/players/${leader.athlete_id}`}
                 className="p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all"
               >
-                <div className="text-sm text-gray-500 mb-1">
-                  {idx === 0 ? 'Leading Scorer' : idx === 1 ? '2nd Scorer' : '3rd Scorer'}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-gray-500">
+                    #{idx + 1} Contributor
+                  </div>
+                  <div className="text-lg font-bold text-blue-600">
+                    {leader.pra} PRA
+                  </div>
                 </div>
                 <div className="font-bold text-gray-900 text-lg">{leader.display_name}</div>
                 <div className="text-sm text-gray-600 mb-2">{leader.position_name}</div>
