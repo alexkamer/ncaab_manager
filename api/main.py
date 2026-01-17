@@ -1558,7 +1558,7 @@ async def get_team_detail(team_id: int, season: int = Query(2026)):
                 a.position_name,
                 COUNT(*) as games_played,
                 ROUND(AVG(CAST(ps.field_goals_made AS FLOAT) + CAST(ps.three_point_made AS FLOAT)), 1) as avg_fgm,
-                ROUND(AVG(CAST(ps.field_goals_made AS FLOAT) * 2 + CAST(ps.three_point_made AS FLOAT) * 3 + CAST(ps.free_throws_made AS FLOAT)), 1) as avg_points,
+                ROUND(AVG((CAST(ps.field_goals_made AS FLOAT) - CAST(ps.three_point_made AS FLOAT)) * 2 + CAST(ps.three_point_made AS FLOAT) * 3 + CAST(ps.free_throws_made AS FLOAT)), 1) as avg_points,
                 ROUND(AVG(CAST(ps.rebounds AS FLOAT)), 1) as avg_rebounds,
                 ROUND(AVG(CAST(ps.assists AS FLOAT)), 1) as avg_assists,
                 ROUND(AVG(CAST(ps.steals AS FLOAT)), 1) as avg_steals,
