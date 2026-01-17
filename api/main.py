@@ -1407,6 +1407,69 @@ def get_teams(
         }
 
 
+async def fetch_team_leaders_from_espn(team_id: int, season: int) -> List[Dict[str, Any]]:
+    """Fetch team leaders from ESPN Core API"""
+    try:
+        url = f"http://sports.core.api.espn.com/v2/sports/basketball/leagues/mens-college-basketball/seasons/{season}/types/0/teams/{team_id}/leaders?lang=en&region=us"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+
+            leaders = []
+            categories = data.get('categories', [])
+
+            # Find points, rebounds, and assists categories
+            ppg_category = next((c for c in categories if c.get('name') == 'pointsPerGame'), None)
+            rpg_category = next((c for c in categories if c.get('name') == 'reboundsPerGame'), None)
+            apg_category = next((c for c in categories if c.get('name') == 'assistsPerGame'), None)
+
+            if ppg_category:
+                # Get top scorers and fetch their full stats
+                for idx, leader in enumerate(ppg_category.get('leaders', [])[:10]):
+                    athlete_url = leader.get('athlete', {}).get('$ref')
+                    if athlete_url:
+                        try:
+                            athlete_response = await client.get(athlete_url, timeout=10.0)
+                            athlete_data = athlete_response.json()
+
+                            # Get rebounds and assists for this athlete
+                            rpg = 0.0
+                            apg = 0.0
+
+                            if rpg_category:
+                                rpg_leader = next((l for l in rpg_category.get('leaders', [])
+                                                 if l.get('athlete', {}).get('$ref') == athlete_url), None)
+                                if rpg_leader:
+                                    rpg = rpg_leader.get('value', 0.0)
+
+                            if apg_category:
+                                apg_leader = next((l for l in apg_category.get('leaders', [])
+                                                 if l.get('athlete', {}).get('$ref') == athlete_url), None)
+                                if apg_leader:
+                                    apg = apg_leader.get('value', 0.0)
+
+                            leaders.append({
+                                'athlete_id': athlete_data.get('id'),
+                                'full_name': athlete_data.get('fullName'),
+                                'display_name': athlete_data.get('displayName'),
+                                'position_name': athlete_data.get('position', {}).get('displayName', ''),
+                                'avg_points': round(leader.get('value', 0.0), 1),
+                                'avg_rebounds': round(rpg, 1),
+                                'avg_assists': round(apg, 1)
+                            })
+                        except Exception as e:
+                            print(f"Error fetching athlete data: {e}")
+                            continue
+
+            return leaders
+
+    except Exception as e:
+        print(f"Error fetching team leaders from ESPN: {e}")
+        return []
+
+
 async def fetch_team_info_from_espn(team_id: int, season: int) -> Dict[str, Any]:
     """Fetch additional team info from ESPN Core API"""
     try:
@@ -1549,31 +1612,8 @@ async def get_team_detail(team_id: int, season: int = Query(2026)):
         if stats:
             team_dict["team_stats"] = dict_from_row(stats)
 
-        # Get team leaders (top 3 scorers, top rebounder, top assist leader)
-        cursor.execute("""
-            SELECT
-                a.athlete_id,
-                a.full_name,
-                a.display_name,
-                a.position_name,
-                COUNT(*) as games_played,
-                ROUND(AVG(CAST(ps.field_goals_made AS FLOAT) + CAST(ps.three_point_made AS FLOAT)), 1) as avg_fgm,
-                ROUND(AVG((CAST(ps.field_goals_made AS FLOAT) - CAST(ps.three_point_made AS FLOAT)) * 2 + CAST(ps.three_point_made AS FLOAT) * 3 + CAST(ps.free_throws_made AS FLOAT)), 1) as avg_points,
-                ROUND(AVG(CAST(ps.rebounds AS FLOAT)), 1) as avg_rebounds,
-                ROUND(AVG(CAST(ps.assists AS FLOAT)), 1) as avg_assists,
-                ROUND(AVG(CAST(ps.steals AS FLOAT)), 1) as avg_steals,
-                ROUND(AVG(CAST(ps.blocks AS FLOAT)), 1) as avg_blocks
-            FROM player_statistics ps
-            JOIN athletes a ON ps.athlete_id = a.athlete_id
-            JOIN events e ON ps.event_id = e.event_id
-            JOIN seasons s ON e.season_id = s.season_id
-            WHERE ps.team_id = ? AND s.year = ? AND e.is_completed = 1 AND ps.is_active = 1
-            GROUP BY ps.athlete_id
-            HAVING COUNT(*) >= 5
-            ORDER BY avg_points DESC
-            LIMIT 10
-        """, (team_id, season))
-        team_dict["leaders"] = [dict_from_row(row) for row in cursor.fetchall()]
+        # Get team leaders from ESPN (more accurate than database calculation)
+        team_dict["leaders"] = await fetch_team_leaders_from_espn(team_id, season)
 
         # Get team's games with enhanced info (rankings, odds, broadcast)
         cursor.execute("""
