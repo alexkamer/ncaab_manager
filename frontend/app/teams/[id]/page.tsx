@@ -341,11 +341,11 @@ export default async function TeamPage({ params }: { params: Promise<{ id: strin
                 {team.venue_city}, {team.venue_state}
               </div>
             </div>
-            {standings.home_wins !== undefined && (
+            {standings.home_wins !== undefined && standings.home_losses !== undefined && (
               <div className="text-right">
                 <div className="text-sm text-gray-500 mb-1">Home Record</div>
                 <div className="text-2xl font-bold text-gray-900">
-                  {standings.home_wins}-{(standings.wins - standings.home_wins - standings.road_wins) || 0}
+                  {standings.home_wins}-{standings.home_losses}
                 </div>
               </div>
             )}
